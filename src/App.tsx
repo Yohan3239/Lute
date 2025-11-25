@@ -1,35 +1,42 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/electron-vite.animate.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import Topbar from "./components/Topbar";
 
-function App() {
-  const [count, setCount] = useState(0)
+import Home from "./pages/Home";
+import Review from "./pages/Review";
+import Decks from "./pages/Decks";
+import AddCard from "./pages/AddCard";
+import CardsPage from "./pages/Cards";
+import EditCard from "./pages/EditCard";
+import DeckDetail from "./pages/DeckDetail";
 
+export default function App() {
   return (
-    <>
-      <div>
-        <a href="https://electron-vite.github.io" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <BrowserRouter>
+      <div className="flex h-screen bg-black text-white font-inter">
+        <Sidebar />
+        <div className="flex-1 flex flex-col">
+          <Topbar />
+          <div className="p-6 flex-1">
+            <Routes>
+              <Route path="/" element={<Home />} />
 
-export default App
+              {/* Reviews */}
+              <Route path="/review" element={<Review />} />
+              <Route path="/review/:deckId" element={<Review />} />
+
+              {/* Decks */}
+              <Route path="/decks" element={<Decks />} />
+              <Route path="/decks/:deckId" element={<DeckDetail />} />
+
+              {/* Cards */}
+              <Route path="/add" element={<AddCard />} />
+              <Route path="/cards" element={<CardsPage />} />
+              <Route path="/cards/:id" element={<EditCard />} />
+            </Routes>
+          </div>
+        </div>
+      </div>
+    </BrowserRouter>
+  );
+}
