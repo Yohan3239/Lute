@@ -21,23 +21,23 @@ export default function CardsPage() {
     <div className="text-white p-6">
       <h1 className="text-2xl mb-4">All Cards ({cards.length})</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col divide-y divide-white/10 border border-white/10 rounded-lg">
         {cards.map((card) => (
-            <Link to={`/cards/${card.id}`}>
-                <div
-                    key={card.id}
-                    className="p-4 rounded-lg bg-[#111] border border-white/10 hover:border-purple-400 transition cursor-pointer"
-                >
-                    <div className="font-semibold text-lg">{card.question}</div>
-                    <div className="opacity-60 mt-2">{card.answer}</div>
+            <Link
+            key={card.id}
+            to={`/cards/${card.id}`}
+            className="px-4 py-3 hover:bg-white/5 transition-colors flex justify-between items-center"
+            >
+            <div>
+                <div className="font-medium">{card.question}</div>
+                <div className="opacity-50 text-sm">{card.answer}</div>
+            </div>
 
-                    <div className="text-xs opacity-40 mt-3">
-                    interval: {card.interval}d · ease: {card.ease.toFixed(2)}
-                    </div>
-                </div>
+            <div className="opacity-30 text-sm">›</div>
             </Link>
         ))}
-      </div>
+        </div>
+
     </div>
   );
 }

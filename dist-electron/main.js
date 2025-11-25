@@ -29,6 +29,27 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 }
+function ensureDefaultDeck() {
+  if (!fs.existsSync(decksPath)) {
+    fs.writeFileSync(decksPath, "[]");
+  }
+  const raw = fs.readFileSync(decksPath, "utf8");
+  let decks = [];
+  try {
+    decks = JSON.parse(raw);
+  } catch {
+    decks = [];
+  }
+  if (!decks.find((d) => d.id === "default-deck")) {
+    decks.push({
+      id: "default-deck",
+      name: "Default",
+      created: Date.now()
+    });
+    fs.writeFileSync(decksPath, JSON.stringify(decks, null, 2));
+  }
+}
+ensureDefaultDeck();
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();

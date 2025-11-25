@@ -51,6 +51,33 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
+// Ensure default deck exists
+function ensureDefaultDeck() {
+  if (!fs.existsSync(decksPath)) {
+    fs.writeFileSync(decksPath, "[]");
+  }
+
+  const raw = fs.readFileSync(decksPath, "utf8");
+  let decks = [];
+
+  try {
+    decks = JSON.parse(raw);
+  } catch {
+    decks = [];
+  }
+
+  if (!decks.find((d) => d.id === "default-deck")) {
+    decks.push({
+      id: "default-deck",
+      name: "Default",
+      created: Date.now(),
+    });
+
+    fs.writeFileSync(decksPath, JSON.stringify(decks, null, 2));
+  }
+}
+
+ensureDefaultDeck();
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

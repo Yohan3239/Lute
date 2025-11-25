@@ -77,13 +77,20 @@ export default function DeckDetail() {
 
           <div className="flex gap-3">
             <button
-              onClick={() => setShowRename(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowRename(true);
+              }}
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded"
             >
               Rename
             </button>
+
             <button
-              onClick={() => setShowDelete(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDelete(true);
+              }}
               className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
             >
               Delete
@@ -114,18 +121,23 @@ export default function DeckDetail() {
         {cards.length === 0 ? (
           <div className="opacity-60">No cards in this deck yet.</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col divide-y divide-white/10 border border-white/10 rounded-lg">
             {cards.map((card) => (
               <Link
                 key={card.id}
                 to={`/cards/${card.id}`}
-                className="p-4 bg-[#111] rounded-lg border border-white/10 hover:border-purple-400 transition"
+                className="px-4 py-3 hover:bg-white/5 transition-colors flex justify-between items-center"
               >
-                <div className="font-semibold">{card.question}</div>
-                <div className="opacity-60 mt-2 text-sm">{card.answer}</div>
+                <div>
+                  <div className="font-medium">{card.question}</div>
+                  <div className="opacity-50 text-sm">{card.answer}</div>
+                </div>
+
+                <div className="opacity-30 text-sm">›</div>
               </Link>
             ))}
           </div>
+
         )}
       </div>
 

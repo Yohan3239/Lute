@@ -1,66 +1,80 @@
 import { useEffect, useState } from "react";
-import { Card } from "../lib/types";
+import { Card, Deck } from "../lib/types";
 import { createNewCard } from "../lib/defaults";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import { DEFAULT_DECK_ID } from "../lib/constants";
+import { listDecks } from "../lib/decks";
 
 export default function AddCard() {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [status, setStatus] = useState<null | "saved" | "error">(null);
+    const [question, setQuestion] = useState("");
+    const [answer, setAnswer] = useState("");
+    const [status, setStatus] = useState<null | "saved" | "error">(null);
 
-  // ⭐ get ?deckId=xxxx from URL
-  const location = useLocation();
-  const deckId = location.state?.deckId || null;
+    // ⭐ get ?deckId=xxxx from URL
+    const location = useLocation();
+    const deckId = location.state?.deckId || null;
+    const [decks, setDecks] = useState<Deck[]>([]);
+    const [selectedDeckId, setSelectedDeckId] = useState(
+        deckId ?? DEFAULT_DECK_ID
+    );
 
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+        useEffect(() => {
+        listDecks().then(setDecks);
+        }, []);
 
-  useEffect(() => {
-    if (!deckId) {
-      console.warn("No deckId provided!");
-    }
-  }, [deckId]);
+    useEffect(() => {
+        if (!deckId) {
+        console.warn("No deckId provided!");
+        }
+    }, [deckId]);
 
-  const handleSave = async () => {
-    try {
-      if (!deckId) {
-        setStatus("error");
-        return;
-      }
+    const handleSave = async () => {
+        try {
+            const existingCards = await window.api.readCards();
 
-      const existingCards = await window.api.readCards();
+            // ⭐ new card attached to deckId
+            const newCard: Card = {
+                ...createNewCard(question, answer),
+                deckId: selectedDeckId,
+            };
 
-      // ⭐ new card attached to deckId
-      const newCard: Card = {
-        ...createNewCard(question, answer),
-        deckId,
-      };
+            const updated = [...existingCards, newCard];
+            await window.api.saveCards(updated);
 
-      const updated = [...existingCards, newCard];
-      await window.api.saveCards(updated);
+            setStatus("saved");
 
-      setStatus("saved");
+            // optional: redirect back to deck
+            navigate(`/decks/${selectedDeckId}`);
 
-      // optional: redirect back to deck
-      navigate(`/decks/${deckId}`);
-
-    } catch (err) {
-      console.error(err);
-      setStatus("error");
-    }
-  };
+            } catch (err) {
+            console.error(err);
+            setStatus("error");
+        }
+    };
 
   return (
     <div className="text-white p-6">
       <h1 className="text-2xl mb-4">Add New Card</h1>
 
-      {!deckId && (
-        <div className="text-red-400 mb-4">
-          ⚠️ Error: No deck selected.
-        </div>
-      )}
+
 
       <div className="flex flex-col gap-4">
+        <div>
+            <label className="opacity-70 text-sm">Deck</label>
+            <select
+                className="p-2 bg-[#1a1a1a] border border-white/20 rounded w-full mt-1"
+                value={selectedDeckId}
+                onChange={(e) => setSelectedDeckId(e.target.value)}
+            >
+                {decks.map((d) => (
+                <option key={d.id} value={d.id}>
+                    {d.name}
+                </option>
+                ))}
+            </select>
+        </div>
 
         <input
           className="p-2 rounded bg-[#1a1a1a] border border-white/20"
@@ -79,7 +93,6 @@ export default function AddCard() {
         <button
           className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
           onClick={handleSave}
-          disabled={!deckId}
         >
           Save Card
         </button>
