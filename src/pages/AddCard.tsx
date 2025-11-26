@@ -91,11 +91,13 @@ export default function AddCard() {
         />
 
         <button
-          className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
-          onClick={handleSave}
+        className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded disabled:bg-gray-600 disabled:opacity-50"
+        onClick={handleSave}
+        disabled={!question.trim() || !answer.trim()}
         >
-          Save Card
+        Save Card
         </button>
+
 
         {status === "saved" && (
           <div className="text-green-400">Card saved!</div>

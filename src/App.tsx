@@ -6,10 +6,9 @@ import Home from "./pages/Home";
 import Review from "./pages/Review";
 import Decks from "./pages/Decks";
 import AddCard from "./pages/AddCard";
-import CardsPage from "./pages/Cards";
 import EditCard from "./pages/EditCard";
 import DeckDetail from "./pages/DeckDetail";
-
+import Browse from "./pages/Browse";
 export default function App() {
   return (
     <BrowserRouter>
@@ -30,8 +29,9 @@ export default function App() {
               <Route path="/decks/:deckId" element={<DeckDetail />} />
 
               {/* Cards */}
+              <Route path="/browse" element={<Browse />} />
               <Route path="/add" element={<AddCard />} />
-              <Route path="/cards" element={<CardsPage />} />
+              
               <Route path="/cards/:id" element={<EditCard />} />
             </Routes>
           </div>

@@ -1,9 +1,10 @@
+// src/lib/session.ts
 import { Card } from "./types";
-import { reviewCard } from "./srs";
+import { reviewCard, Grade } from "./srs";
 
 export class Session {
   private queue: Card[];
-  private index: number = 0;
+  private index = 0;
 
   constructor(cards: Card[]) {
     this.queue = cards;
@@ -13,13 +14,15 @@ export class Session {
     return this.queue[this.index] || null;
   }
 
-  grade(grade: "easy" | "good" | "hard" | "wrong") {
-    if (!this.current) return;
+  grade(grade: Grade): Card | null {
+    const card = this.current;
+    if (!card) return null;
 
-    const updated = reviewCard(this.current, grade);
+    const updated = reviewCard(card, grade);
     this.queue[this.index] = updated;
-
     this.index++;
+
+    return updated;
   }
 
   isFinished() {

@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Deck } from "../lib/types";
 import { listDecks, createDeck } from "../lib/decks";
 import { Link } from "react-router-dom";
 import { Card } from "../lib/types";
+import { DEFAULT_DECK_ID } from "../lib/constants";
 
 export default function DecksPage() {
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -16,15 +17,25 @@ export default function DecksPage() {
     window.api.readCards().then(setCards);
   }, []);
 
+  // 👉 SAFELY sort decks without causing rerenders
+  const sortedDecks = useMemo(() => {
+    return [...decks].sort((a, b) => {
+      if (a.id === DEFAULT_DECK_ID) return -1;
+      if (b.id === DEFAULT_DECK_ID) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [decks]);
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
+
     await createDeck(newName.trim());
     setNewName("");
     setShowCreate(false);
+
     setDecks(await listDecks()); // refresh
   };
 
-  // Count cards in each deck
   const countCards = (deckId: string) =>
     cards.filter((c) => c.deckId === deckId).length;
 
@@ -43,13 +54,22 @@ export default function DecksPage() {
 
       {/* Deck list */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {decks.map((deck) => (
+        {sortedDecks.map((deck) => (
           <Link
             key={deck.id}
             to={`/decks/${deck.id}`}
             className="p-4 bg-[#111] rounded-lg border border-white/10 hover:border-purple-400 transition"
           >
-            <div className="text-xl font-semibold">{deck.name}</div>
+            <div className="flex items-center gap-2 text-xl font-semibold">
+              {deck.name}
+
+              {deck.id === DEFAULT_DECK_ID && (
+                <span className="text-xs px-2 py-1 rounded bg-white/10 uppercase opacity-80">
+                  DEFAULT
+                </span>
+              )}
+            </div>
+
             <div className="opacity-60 mt-2 text-sm">
               {countCards(deck.id)} cards
             </div>

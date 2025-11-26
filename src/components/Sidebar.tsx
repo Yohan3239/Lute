@@ -11,8 +11,8 @@ export default function Sidebar() {
       <Link to="/add" className="hover:text-purple-400 transition">
         Add Card
       </Link>
-      <Link to="/cards" className="hover:text-purple-400 transition">
-        All Cards
+      <Link to="/browse" className="hover:text-purple-400 transition">
+        Browse
       </Link>
     </div>
   );

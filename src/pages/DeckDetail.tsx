@@ -2,18 +2,26 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Deck, Card } from "../lib/types";
 import { listDecks, renameDeck, deleteDeck } from "../lib/decks";
+import { DEFAULT_DECK_ID } from "../lib/constants";
+import { computeDeckStats } from "../lib/stats";
+
 
 export default function DeckDetail() {
   const { deckId } = useParams();
   const navigate = useNavigate();
+ 
 
   const [deck, setDeck] = useState<Deck | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [showRename, setShowRename] = useState(false);
   const [newName, setNewName] = useState("");
   const [showDelete, setShowDelete] = useState(false);
+  const now = Date.now();
+  const newCount = cards.filter(c => c.status === "new").length;
+  const learningCount = cards.filter(c => c.status === "learning" || c.status === "relearning").length;
+  const dueCount = cards.filter(c => c.nextReview <= now).length;
 
-  // Load deck + cards for this deck
+  // Load deck info + cards
   useEffect(() => {
     if (!deckId) return;
 
@@ -31,21 +39,26 @@ export default function DeckDetail() {
 
   const handleRename = async () => {
     if (!deckId || !newName.trim()) return;
+
     await renameDeck(deckId, newName.trim());
     const updatedDecks = await listDecks();
     const updated = updatedDecks.find((d) => d.id === deckId) || null;
     setDeck(updated);
+
     setShowRename(false);
   };
 
   const handleDelete = async () => {
     if (!deckId) return;
 
+    // remove cards with this deck
     const allCards = await window.api.readCards();
     const remaining = allCards.filter((c: Card) => c.deckId !== deckId);
     await window.api.saveCards(remaining);
 
+    // remove deck itself
     await deleteDeck(deckId);
+
     navigate("/decks");
   };
 
@@ -62,62 +75,97 @@ export default function DeckDetail() {
       </div>
     );
   }
+  function formatDue(ts: number) {
+    const diff = ts - Date.now();
+    if (diff <= 0) return "Due now";
+
+    const mins = Math.round(diff / 60000);
+    if (mins < 60) return `${mins} min`;
+
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours} hours`;
+
+    const days = Math.round(hours / 24);
+    return `${days} days`;
+  }
+
+  const isDefault = deck.id === DEFAULT_DECK_ID;
 
   return (
     <>
       <div className="text-white p-6">
+
+        {/* HEADER */}
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-semibold">{deck.name}</h1>
+            <h1 className="text-2xl font-semibold">
+              {deck.name}
+              {isDefault && (
+                <span className="ml-2 text-xs bg-white/10 px-2 py-1 rounded uppercase opacity-80">
+                  DEFAULT
+                </span>
+              )}
+            </h1>
+
+            <div className="text-sm opacity-70 flex gap-4 flex-wrap">
+              <span>{newCount} new</span>
+              <span>{learningCount} learning</span>
+              <span>{dueCount} due</span>
+            </div>
+
+
             <div className="text-sm opacity-60">
               {cards.length} cards · created{" "}
               {new Date(deck.created).toLocaleDateString()}
             </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRename(true);
-              }}
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded"
-            >
-              Rename
-            </button>
+          {!isDefault && (
+            <div className="flex gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRename(true);
+                }}
+                className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Rename
+              </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDelete(true);
-              }}
-              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
-            >
-              Delete
-            </button>
-          </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDelete(true);
+                }}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* ACTION BUTTONS */}
         <div className="flex gap-3 mb-6">
           <Link
             to={`/review/${deck.id}`}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded"
           >
-            Review this deck
+            Review
           </Link>
 
-          {/* ⭐ FIXED: correct deckId passing */}
           <Link
-            to= "/add"
-            state={{deckId: deck.id}}
+            to="/add"
+            state={{ deckId: deck.id }}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
           >
-            Add card to this deck
+            Add card
           </Link>
         </div>
 
-        {/* Cards in this deck */}
+        {/* CARD LIST */}
         <h2 className="text-xl mb-3">Cards</h2>
+
         {cards.length === 0 ? (
           <div className="opacity-60">No cards in this deck yet.</div>
         ) : (
@@ -129,19 +177,78 @@ export default function DeckDetail() {
                 className="px-4 py-3 hover:bg-white/5 transition-colors flex justify-between items-center"
               >
                 <div>
-                  <div className="font-medium">{card.question}</div>
-                  <div className="opacity-50 text-sm">{card.answer}</div>
+                <div className="font-medium">{card.question}</div>
+                <div className="opacity-50 text-sm">{card.answer}</div>
+
+                <div className="opacity-40 text-xs mt-1">
+                  Next review: {formatDue(card.nextReview)}
+
                 </div>
 
+                </div>
                 <div className="opacity-30 text-sm">›</div>
               </Link>
             ))}
           </div>
-
         )}
       </div>
 
-      {/* Rename and Delete modals remain unchanged */}
+      {/* RENAME MODAL */}
+      {showRename && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#1a1a1a] p-6 rounded-lg w-80 border border-white/20">
+            <h2 className="text-xl mb-4">Rename deck</h2>
+            <input
+              className="w-full p-2 rounded bg-[#222] border border-white/20"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowRename(false)}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRename}
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE MODAL */}
+      {showDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#1a1a1a] p-6 rounded-lg w-80 border border-white/20">
+            <h2 className="text-xl mb-4 text-red-400">Delete this deck?</h2>
+
+            <p className="text-sm opacity-70 mb-6">
+              This will delete the entire deck and its cards.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDelete(false)}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

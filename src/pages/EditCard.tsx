@@ -37,6 +37,10 @@ export default function EditCard() {
 
     // Save updated card
     const handleSave = async () => {
+        if (!question.trim() || !answer.trim()) {
+            return; // or show error
+        }
+
         const all = await window.api.readCards();
         const updated = all.map((c) =>
         c.id === id
@@ -51,9 +55,11 @@ export default function EditCard() {
 
     await window.api.saveCards(updated);
 
-    // ⭐ Go back to the deck
-    navigate(`/decks/${selectedDeckId}`);
-
+    if (fromDeckId) {
+    navigate(`/decks/${fromDeckId}`);
+    } else {
+    navigate("/browse");
+    }
 
   };
 
@@ -68,7 +74,7 @@ export default function EditCard() {
     if (fromDeckId) {
     navigate(`/decks/${fromDeckId}`);
     } else {
-    navigate("/cards");
+    navigate("/browse");
     }
   };
 
@@ -107,12 +113,13 @@ export default function EditCard() {
                 placeholder="Answer"
             />
 
-            <button
+                <button
+                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded disabled:bg-gray-600 disabled:opacity-50"
                 onClick={handleSave}
-                className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
-            >
-                Save Changes
-            </button>
+                disabled={!question.trim() || !answer.trim()}
+                >
+                Save Card
+                </button>
 
             <button
                 onClick={() => setShowDelete(true)}
