@@ -1,5 +1,5 @@
 // src/lib/srs.ts
-import { Card } from "./types";
+import { Card, VariantCard } from "./types";
 
 // ---- Tunable knobs (roughly Anki-ish) ----
 
@@ -42,7 +42,7 @@ function normalizeCard(card: Card): Card {
 
 // ---- Core SRS function ----
 
-export function reviewCard(rawCard: Card, grade: Grade): Card {
+export function reviewCard(vc: VariantCard, grade: Grade): Card {
   let card = normalizeCard(rawCard);
   const t = now();
 

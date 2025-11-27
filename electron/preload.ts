@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("api", {
   saveCards: (cards: Card[]) => ipcRenderer.invoke("save-cards", cards),
   readDecks: () => ipcRenderer.invoke("read-decks"),
   saveDecks: (decks: Deck[]) => ipcRenderer.invoke("save-decks", decks),
+  callLLM: (prompt:string) => ipcRenderer.invoke('call-llm', prompt),
 });

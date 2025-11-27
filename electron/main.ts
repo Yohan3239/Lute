@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain } from "electron";
 import fs from "fs";
-
+import dotenv from "dotenv";
+dotenv.config();
 
 const dataPath = path.join(app.getPath("userData"), "cards.json");
 
@@ -128,6 +129,32 @@ ipcMain.handle("read-decks", async () => {
 ipcMain.handle("save-decks", async (_event, decks) => {
   fs.writeFileSync(decksPath, JSON.stringify(decks, null, 2));
   return true;
+});
+
+ipcMain.handle("call-llm", async (_event, prompt: string) => {
+  if (!prompt || typeof prompt !== "string") {
+    throw new Error("call-llm requires a prompt string");
+  }
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.GROQ_API_KEY ?? ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? "";
 });
 
 app.whenReady().then(createWindow)

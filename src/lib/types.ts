@@ -1,5 +1,8 @@
 // src/lib/types.ts
+import { MCQ, Cloze, TrueFalse } from "./llm";
 export type CardStatus = "new" | "learning" | "review" | "relearning";
+export type ReviewVariant = MCQ | Cloze | TrueFalse;
+export type VariantCard = Card & {variant:ReviewVariant | null};
 
 export interface Card {
   id: string;
