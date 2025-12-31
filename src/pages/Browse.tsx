@@ -78,7 +78,7 @@ export default function Browse() {
         {/* All cards option */}
         <div
           className={`p-2 rounded cursor-pointer ${
-            currentDeck === "all" ? "bg-[#16161a] border border-white/10" : "hover:bg-white/5"
+            currentDeck === "all" ? "bg-[#16161a] " : "hover:bg-white/5"
           }`}
           onClick={() => setCurrentDeck("all")}
         >
@@ -90,7 +90,7 @@ export default function Browse() {
           <div
             key={deck.id}
             className={`p-2 rounded cursor-pointer mt-1 ${
-              currentDeck === deck.id ? "bg-[#16161a] border border-white/10" : "hover:bg-white/5"
+              currentDeck === deck.id ? "bg-[#16161a]" : "hover:bg-white/5"
             }`}
             onClick={() => setCurrentDeck(deck.id)}
           >
@@ -101,9 +101,6 @@ export default function Browse() {
 
       {/* MAIN TABLE AREA */}
       <div className="flex-1 p-4 overflow-auto">
-
-        <h1 className="text-2xl mb-4">Browse</h1>
-
         {/* Bulk actions */}
         {selected.length > 0 && (
           <div className="flex gap-3 mb-4">
@@ -147,7 +144,6 @@ export default function Browse() {
         <table className="w-full text-left border-collapse">
           <thead className="border-b border-white/20">
             <tr>
-              <th className="p-2 w-8"></th>
               <th className="p-2">Question</th>
               <th className="p-2">Answer</th>
               <th className="p-2">Deck</th>

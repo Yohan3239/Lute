@@ -55,6 +55,7 @@ const navItems = [
       </svg>
     ),
   },
+
 ];
 
 export default function Sidebar() {
@@ -104,7 +105,7 @@ export default function Sidebar() {
 
       <Link
         to="/add"
-        className="relative inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-400/40 bg-gradient-to-r from-emerald-500/80 to-indigo-500/70 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/15 hover:from-emerald-500 hover:to-indigo-500 hover:scale-105 transition transform "
+        className="relative inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-400/40 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 hover:scale-105 transition transform "
       >
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M12 5v14" />

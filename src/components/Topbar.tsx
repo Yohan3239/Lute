@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
-
+import { DEFAULT_SETTINGS } from "../lib/constants";
+import { useState } from "react";
 type RouteMeta = {
   match: RegExp;
   title: string;
@@ -14,12 +15,12 @@ const routes: RouteMeta[] = [
   { match: /^\/add/, title: "Add Card"},
   { match: /^\/cards\//, title: "Edit Card"},
   { match: /^\/settings/, title: "Settings"},
+  { match: /^\/import/, title: "Import"},
 ];
 
 const fallbackMeta: RouteMeta = {
   match: /.*/,
-  title: "Workspace",
-  badge: "Lute",
+  title: "Home",
 };
 
 export default function Topbar() {
@@ -42,7 +43,7 @@ export default function Topbar() {
 
       <div className="flex items-center gap-2">
         <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-200">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="h-2.5 w-2.5 rounded-full bg-indigo-400 animate-pulse" />
           <span className="tracking-wide">{today}</span>
         </span>
       </div>

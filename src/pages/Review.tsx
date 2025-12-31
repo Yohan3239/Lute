@@ -7,8 +7,7 @@ import { listDecks } from "../lib/decks";
 import { generateMCQ, generateCloze, generateTrueFalse } from "../lib/llm";
 import levenshtein  from "js-levenshtein";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { DEFAULT_SETTINGS } from "./Settings";
-
+import { DEFAULT_SETTINGS } from "../lib/constants";
 const mulberry32 = (a: number) => {
   return function () {
     a |= 0;
@@ -18,6 +17,7 @@ const mulberry32 = (a: number) => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
+
 
 export default function Review() {
   const [searchParams] = useSearchParams();
@@ -92,9 +92,31 @@ export default function Review() {
       return DEFAULT_SETTINGS;
     }
   };
-  const settings = loadSettings();
-  const defaultMode = settings?.defaultMode || DEFAULT_SETTINGS.defaultMode;
-  
+  // Load settings
+  const prev = loadSettings();
+  const defaultMode = prev?.defaultMode || DEFAULT_SETTINGS.defaultMode;
+  const typingTolerance = prev?.typingTolerance || DEFAULT_SETTINGS.typingTolerance;
+  const enableMultipleChoice = prev?.enableMultipleChoice ?? DEFAULT_SETTINGS.enableMultipleChoice;
+  const enableCloze = prev?.enableCloze ?? DEFAULT_SETTINGS.enableCloze;
+  const enableTrueFalse = prev?.enableTrueFalse ?? DEFAULT_SETTINGS.enableTrueFalse;
+
+  // Streak bump on review end
+  function streakBump() {
+      const today = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const last = localStorage.getItem("lastStreakDate") || "1970-01-01";
+      const currentStreak = Number(localStorage.getItem("globalStreak")) || 0;
+      if (last === today) {
+          return; // already counted today
+      } else if (last === yesterday) {
+          localStorage.setItem("lastStreakDate", today);
+          localStorage.setItem("globalStreak", (currentStreak + 1).toString());
+      } else {
+          localStorage.setItem("lastStreakDate", today);
+          localStorage.setItem("globalStreak", "1");
+      }
+  }
+
   useEffect(() => {
     setAnswer("");
     setShowAnswer(false);
@@ -146,9 +168,19 @@ export default function Review() {
           const classicVariant: Classic = { type: "classic", prompt: card.question, answer: card.answer };
           if (!isAIReview) return { ...card, variant: classicVariant }; // no variant
           const r = rng();
-          const generator = r < 0.33 ? generateCloze : r < 0.66 ? generateMCQ : generateTrueFalse;
-          const variant = await generator(card);
-          return { ...card, variant}
+          const options = [];
+
+          if (enableCloze) options.push(() => generateCloze(card));
+          if (enableMultipleChoice) options.push(() => generateMCQ(card));
+          if (enableTrueFalse) options.push(() => generateTrueFalse(card));
+
+          if (options.length === 0) {
+            throw new Error("No card types enabled");
+          }
+
+          const choice = options[Math.floor(Math.random() * options.length)];
+          const variant = await choice();
+          return { ...card, variant };
         })
       );
       
@@ -229,8 +261,8 @@ export default function Review() {
                       Classic
                     </Link>
 
-                    <Link className="px-4 py-2 bg-emerald-400/70 hover:bg-emerald-400/90 transition border-l border-white/20"
-                      to={`/review/${deck.id}?mode=ai`}
+                    <Link className="px-4 py-2 bg-indigo-400/70 hover:bg-indigo-400/90 transition border-l border-white/20"
+                      to={`/review/${deck.id}?mode=ai`} 
                     >
                       Quiz
                     </Link>
@@ -270,7 +302,7 @@ export default function Review() {
 
         <Link
           to={`/review`}
-          className="px-4 py-2 rounded bg-emerald-500/80 text-emerald-50 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)] hover:bg-emerald-500"
+          className="px-4 py-2 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
         >
           Back to review menu
         </Link>
@@ -285,6 +317,7 @@ export default function Review() {
 
   const card = session.current;
   if (!card) {
+    streakBump();
     setFinished(true);
     return <div className="text-gray-100 p-6">Finishing...</div>;
   }
@@ -339,7 +372,7 @@ export default function Review() {
         v.type === "cloze" &&
         typeof userAnswer === "string" &&
         typeof correctAnswer === "string" &&
-        levenshtein(userAnswer, correctAnswer) <= 1;
+        levenshtein(userAnswer, correctAnswer) <= typingTolerance;
 
       const correctOrClose = isExact || isFuzzyClose;
 
@@ -403,9 +436,9 @@ export default function Review() {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className={`p-4 rounded bg-[#111113] border border-white/10 ${
               gradeFlash === "easy"
-                ? "ring-2 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]"
+                ? "ring-2 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
                 : gradeFlash === "good"
-                ? "ring-2 ring-emerald-400/40 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+                ? "ring-2 ring-indigo-400/40 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
                 : gradeFlash === "hard"
                 ? "ring-2 ring-amber-300/70 shadow-[0_0_30px_-10px_rgba(252,211,77,0.6)]"
                 : gradeFlash === "wrong"
@@ -442,7 +475,7 @@ export default function Review() {
               whileTap={{ scale: 0.97 }}
               variants={itemVariants}
               className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
-                        ${showAnswer && card.variant?.answer === true ? "ring-4 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]" : ""}`}
+                        ${showAnswer && card.variant?.answer === true ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
               onClick={() => gradeSubmission(true)}
             >
               <span className="relative z-10">True</span>
@@ -452,7 +485,7 @@ export default function Review() {
               whileTap={{ scale: 0.97 }}
               variants={itemVariants}
               className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
-                        ${showAnswer && card.variant?.answer === false ? "ring-4 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]" : ""}`}
+                        ${showAnswer && card.variant?.answer === false ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
               onClick={() => gradeSubmission(false)}
             >
               <span className="relative z-10">False</span>
@@ -472,7 +505,7 @@ export default function Review() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
-                    ${showAnswer && opt === v.answer ? "ring-4 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)]" : ""}`}
+                    ${showAnswer && opt === v.answer ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
                   onClick={() => gradeSubmission(opt)}>{opt}</motion.button>
                 </motion.li>
 

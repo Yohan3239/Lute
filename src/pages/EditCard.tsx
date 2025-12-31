@@ -114,7 +114,7 @@ export default function EditCard() {
             />
 
                 <button
-                className="px-4 py-2 rounded bg-emerald-500/80 text-emerald-50 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)] hover:bg-emerald-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
+                className="px-4 py-2 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
                 onClick={handleSave}
                 disabled={!question.trim() || !answer.trim()}
                 >

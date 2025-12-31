@@ -2,19 +2,34 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, Deck } from "../lib/types";
 import { listDecks } from "../lib/decks";
-import { DEFAULT_SETTINGS } from "./Settings";
+import { DEFAULT_SETTINGS } from "../lib/constants";
+import { read } from "original-fs";
+
+export function readStreak() {
+  return {
+    globalStreak: Number(localStorage.getItem("globalStreak") || "0"),
+    lastStreakDate: localStorage.getItem("lastStreakDate") || "",
+  };
+}
 
 export default function Home() {
   const [cards, setCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [{ globalStreak, lastStreakDate }, setStreakState] = useState(readStreak);
 
   useEffect(() => {
     window.api.readCards().then(setCards);
     listDecks().then(setDecks);
   }, []);
 
-  const now = Date.now();
+  useEffect(() => {
+    // refresh when returning to the tab/home
+    const onFocus = () => setStreakState(readStreak());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
+  const now = Date.now();
   // ---- Today Stats ----
   const dueToday = cards.filter((c) => c.nextReview <= now).length;
   const newCards = cards.filter((c) => c.status === "new").length;
@@ -61,20 +76,32 @@ export default function Home() {
       <h1 className="text-3xl font-semibold mb-4">Dashboard</h1>
 
       {/* ---------------- TODAY STATS ---------------- */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)]">
-          <div className="text-3xl font-bold">{dueToday}</div>
-          <div className="opacity-70 text-gray-400">Due Today</div>
-        </div>
+
+
+      <div className="grid grid-cols-4 gap-4">
 
         <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)]">
-          <div className="text-3xl font-bold">{newCards}</div>
+          <div className="text-3xl font-bold hover:scale-105">{dueToday}</div>
+          <div className="opacity-70 text-gray-400">Due Today</div>
+        </div>
+        <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)]">
+          <div className="text-3xl font-bold hover:scale-105">{newCards}</div>
           <div className="opacity-70 text-gray-400">New Cards</div>
         </div>
 
         <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)]">
-          <div className="text-3xl font-bold">{learningDue}</div>
+          <div className="text-3xl font-bold hover:scale-105">{learningDue}</div>
           <div className="opacity-70 text-gray-400">Learning</div>
+        </div>
+        <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)] ">
+          {globalStreak > 0 &&
+          <div className="text-5xl font-bold text-indigo-300 hover:scale-105">{globalStreak}</div>
+          } {globalStreak === 0 &&
+          <div className="text-3xl font-bold text-gray-500 hover:scale-105">{globalStreak}</div>
+          }
+          <div className="text-sm tracking-wide text-gray-400">Streak</div>
+          { lastStreakDate === new Date().toISOString().slice(0,10) && <div className="text-xs text-gray-500">Keep it up!</div> }
+          { lastStreakDate !== new Date().toISOString().slice(0,10) && <div className="text-xs text-gray-500">Consecutive review days</div> }
         </div>
       </div>
 
@@ -105,7 +132,7 @@ export default function Home() {
                   </Link>
 
                   <Link
-                    className="flex-1 px-4 py-2 bg-emerald-400/70 hover:bg-emerald-400/90 transition border-l border-white/20 text-center"
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
                     to={`/review/${deck.id}?mode=ai`}
                   >
                     Quiz
@@ -114,7 +141,7 @@ export default function Home() {
               ) : (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
                   <Link
-                    className="flex-1 px-4 py-2 transition text-center bg-emerald-400/70 hover:bg-emerald-400/90 text-white"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
                     to={`/review/${deck.id}?mode=${defaultMode}`}
                   >
                     Review
@@ -136,7 +163,7 @@ export default function Home() {
               <div className="w-24 opacity-70 text-gray-400">{dayName(i)}</div>
               <div className="flex-1 h-2 bg-white/5 rounded">
                 <div
-                  className="h-2 bg-indigo-400/80 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+                  className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
                   style={{ width: `${Math.min(count * 8, 100)}%` }}
                 ></div>
               </div>

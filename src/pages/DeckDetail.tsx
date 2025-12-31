@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Deck, Card } from "../lib/types";
 import { listDecks, renameDeck, deleteDeck } from "../lib/decks";
-import { DEFAULT_DECK_ID } from "../lib/constants";
-import { DEFAULT_SETTINGS } from "../pages/Settings";
+import { DEFAULT_DECK_ID, DEFAULT_SETTINGS } from "../lib/constants";
 
 export default function DeckDetail() {
   const { deckId } = useParams();
@@ -18,7 +17,7 @@ export default function DeckDetail() {
   const loadDefaultMode = () => {
     try {
       const raw = localStorage.getItem("settings");
-      if (!raw) return; DEFAULT_SETTINGS.defaultMode;
+      if (!raw) return DEFAULT_SETTINGS.defaultMode;
       const parsed = JSON.parse(raw);
       return parsed.defaultMode || DEFAULT_SETTINGS.defaultMode;
     } catch {
@@ -80,7 +79,7 @@ export default function DeckDetail() {
         <h1 className="text-2xl mb-2">Deck not found</h1>
         <button
           onClick={() => navigate("/decks")}
-          className="mt-2 px-3 py-1 rounded bg-emerald-500/80 text-emerald-50 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)] hover:bg-emerald-500"
+          className="mt-2 px-3 py-1 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
         >
           Back to decks
         </button>
@@ -169,7 +168,7 @@ export default function DeckDetail() {
               </Link>
 
               <Link
-                className="px-4 py-2 bg-emerald-400/70 hover:bg-emerald-400/90 transition border-l border-white/20"
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
                 to={`/review/${deck.id}?mode=ai`}
               >
                 Quiz
@@ -178,7 +177,7 @@ export default function DeckDetail() {
           ) : (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
               <Link
-                className="px-4 py-2 transition bg-emerald-400/70 hover:bg-emerald-400/90 text-white"
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
                 to={`/review/${deck.id}?mode=${defaultMode}`}
               >
                 Review
@@ -192,6 +191,13 @@ export default function DeckDetail() {
             className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Add card
+          </Link>
+          <Link
+            to="/import"
+            state={{ deckId: deck.id }}
+            className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+          >
+            Import
           </Link>
         </div>
 
@@ -244,7 +250,7 @@ export default function DeckDetail() {
               </button>
               <button
                 onClick={handleRename}
-                className="px-3 py-1 rounded bg-emerald-500/80 text-emerald-50 ring-emerald-400/70 shadow-[0_0_30px_-10px_rgba(52,211,153,0.6)] hover:bg-emerald-500"
+                className="px-3 py-1 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
               >
                 Save
               </button>
