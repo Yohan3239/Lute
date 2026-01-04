@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, Deck } from "../lib/types";
 import { listDecks } from "../lib/decks";
 import { DEFAULT_SETTINGS } from "../lib/constants";
+import { getSaveExists } from "./Review";
 
 function readStreak() {
   return {
@@ -129,8 +130,10 @@ export default function Home() {
         <h2 className="text-xl mb-3">Decks</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {deckStats.map((deck) => (
-            
+          {deckStats.map((deck) => {
+            const save = getSaveExists(deck);
+            const otherModeActive = defaultMode === "ai" ? save.classicSaveExists : save.aiSaveExists;
+            return (
             <div
               key={deck.id}
               className="p-4 bg-[#111113] border border-white/5 rounded-lg hover:border-indigo-300/70 transition shadow-[0_0_30px_-10px_rgba(129,140,248,0.15)] flex flex-col gap-3"
@@ -143,32 +146,50 @@ export default function Home() {
               </div>
               {defaultMode === "none" ? (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
-                  <Link
-                    className="flex-1 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition text-center"
+                  <Link className={`${save.aiSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
                     to={`/review/${deck.id}?mode=classic`}
+                    onClick={(e) => {
+                      if (save.aiSaveExists) {
+                        e.preventDefault();
+                      }
+                    }} 
                   >
-                    Classic
+                    {save.aiSaveExists ? "Session in progress" : "Classic"}
                   </Link>
 
-                  <Link
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
-                    to={`/review/${deck.id}?mode=ai`}
+                  <Link className={`${save.classicSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
+                    to={`/review/${deck.id}?mode=ai`} 
+                      onClick={(e) => {
+                      if (save.classicSaveExists) {
+                        e.preventDefault();
+                      }
+                    }} 
                   >
-                    Quiz
+                    {save.classicSaveExists ? "Session in progress" : "Quiz"}
                   </Link>
                 </div>
               ) : (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
                   <Link
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
+                    className={`flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${otherModeActive ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
                     to={`/review/${deck.id}?mode=${defaultMode}`}
+                    onClick={(e) => {
+                      if (otherModeActive) {
+                        e.preventDefault();
+                      }
+                    }}
                   >
-                    Review
+                    {otherModeActive ? "Other mode in progress" : "Review"}
                   </Link>
                 </div>
               )}
             </div>
-          ))}
+          )})}
+
+            
+          
+            
+            
         </div>
       </div>
 

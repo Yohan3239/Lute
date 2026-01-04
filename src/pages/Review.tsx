@@ -18,7 +18,34 @@ type ProcPopupProps = {
   createdAt: number;
   offsetX?: number;
 }
+export function getSaveExists(deck: Deck) {
+  const sessionInfos = getSessionInfo();
+  const classicSaveExists: Boolean = (sessionInfos.some((s) => (s.mode === "classic" && s.deckId === deck.id)))
+  const aiSaveExists: Boolean = (sessionInfos.some((s) => (s.mode === "ai" && s.deckId === deck.id)))
 
+  return {classicSaveExists, aiSaveExists};
+}
+
+function getSessionInfo() {
+return Object.keys(localStorage).filter((i) => i.startsWith("reviewSession-")).map((key) => {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || "{}");
+    const remaining = Math.max(0, (data.queue?.length ?? 0) - (data.index ?? 0));
+    if (!data.queue || remaining <= 0) return null;
+    const parts = key.split("-");
+    const deckIdFromKey = parts.slice(2).join("-"); // preserves hyphens
+    return {
+      key,
+      deckId: data.deckId || deckIdFromKey,
+      mode: data.isAIMode ? "ai" : "classic",
+      remaining,
+    };
+  } catch {
+    return null;
+  } 
+}).filter(Boolean) as Array<{ deckId: string; mode: string; remaining: number }>;
+
+}
 function ProcPopups({ popups }: { popups: ProcPopupProps[] }) {
   const bgFor = (type: ProcPopupProps["type"]) =>
     type === "mult"
@@ -113,7 +140,7 @@ function AnimatedNumber({ value, decimals = 0, className, pulseKey, floatDigits 
   );
 }
 export default function Review() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "classic";
   const isAIReview = mode === "ai";
   const { deckId } = useParams();
@@ -122,7 +149,7 @@ export default function Review() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [finished, setFinished] = useState(false);
-
+  const redirectedRef = useRef(false);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [cards, setCards] = useState<Card[]>([]); 
   const [answer, setAnswer] = useState("");
@@ -243,28 +270,9 @@ export default function Review() {
       localStorage.setItem("globalStreak", "1");
     }
   }
-  function getSessionInfo() {
-    return Object.keys(localStorage).filter((i) => i.startsWith("reviewSession-")).map((key) => {
-      try {
-        const data = JSON.parse(localStorage.getItem(key) || "{}");
-        const remaining = Math.max(0, (data.queue?.length ?? 0) - (data.index ?? 0));
-        if (!data.queue || remaining <= 0) return null;
-        const parts = key.split("-");
-        const deckIdFromKey = parts.slice(2).join("-"); // preserves hyphens
-        return {
-          key,
-          deckId: data.deckId || deckIdFromKey,
-          mode: data.isAIMode ? "ai" : "classic",
-          remaining,
-        };
-      } catch {
-        return null;
-      } 
-    }).filter(Boolean) as Array<{ deckId: string; mode: string; remaining: number }>;
 
-  }
 
-  
+
   useEffect(() => {
     setAnswer("");
     setShowAnswer(false);
@@ -287,6 +295,22 @@ export default function Review() {
   // -------------------------------------------------
   useEffect(() => {
     if (!deckId) return;
+    
+    const classicKey = `reviewSession-classic-${deckId}`;
+    const aiKey = `reviewSession-ai-${deckId}`;
+
+    const classicRaw = localStorage.getItem(classicKey);
+    const aiRaw = localStorage.getItem(aiKey);
+
+    const lockedMode =
+      classicRaw ? "classic" :
+      aiRaw ? "ai" :
+      null;
+    if (lockedMode && mode !== lockedMode) {
+      redirectedRef.current = true;              // prevent loop
+      setSearchParams({ mode: lockedMode }, { replace: true });
+      return;
+    }
     (async () => {
       const all = await window.api.readCards();
       const filtered = all.filter((c) => c.deckId === deckId);
@@ -349,7 +373,7 @@ export default function Review() {
       setFinished(false);
     })();
   // Re-run when deck or mode changes so classic vs AI build their own sessions
-  }, [deckId, isAIReview]);
+  }, [deckId, mode, setSearchParams]);
 
 
   useEffect(() => {
@@ -398,13 +422,18 @@ export default function Review() {
     const sessionInfos = getSessionInfo().filter(
       (s): s is NonNullable<ReturnType<typeof getSessionInfo>[number]> => Boolean(s)
     );
+
+
     return (
       <div className="text-gray-100 p-6">
         <h1 className="text-2xl mb-4">Select Deck to review</h1>
         {defaultMode === "none" &&
           <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113]">
-            {decks.map((deck) => (
-              <div className= "flex flex-row items-center justify-between px-3 py-2" key={deck.id}>
+            {decks.map((deck) => {
+              const classicSaveExists = sessionInfos.some((s) => s.mode === "classic" && s.deckId === deck.id);
+              const aiSaveExists = sessionInfos.some((s) => s.mode === "ai" && s.deckId === deck.id);
+              return (
+                               <div className= "flex flex-row items-center justify-between px-3 py-2" key={deck.id}>
                 <div className="px-4 py-3 transition-colors flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                   <div className="font-medium text-lg">{deck.name}</div>
                   {(() => {
@@ -414,7 +443,7 @@ export default function Review() {
                       return active ? (
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-xs uppercase tracking-wide">
                         <span className="font-semibold">{active.mode} session</span>
-                        <span className="text-emerald-200/80">• {active.remaining} left</span>
+                        <span className="text-emerald-200/80">{active.remaining} left</span>
                       </div>
                     ) : null;
                     } else {
@@ -422,11 +451,11 @@ export default function Review() {
                           <div className="flex flex-row gap-4"> 
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-xs uppercase tracking-wide">
                               <span className="font-semibold">{allActives[0].mode} session</span>
-                              <span className="text-emerald-200/80">• {allActives[0].remaining} left</span>
+                              <span className="text-emerald-200/80"> {allActives[0].remaining} left</span>
                             </div>
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-100 border border-indigo-300/30 text-xs uppercase tracking-wide">
                               <span className="font-semibold">{allActives[1].mode} session</span>
-                              <span className="text-indigo-200/80">• {allActives[1].remaining} left</span>
+                              <span className="text-indigo-200/80"> {allActives[1].remaining} left</span>
                             </div>
                           </div>
                         ) : null;
@@ -442,48 +471,73 @@ export default function Review() {
 
                 </div>
                   <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
-                    <Link className="px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition"
-                      to={`/review/${deck.id}?mode=classic`} 
+                    <Link className={`${aiSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
+                      to={`/review/${deck.id}?mode=classic`}
+                      onClick={(e) => {
+                        if (aiSaveExists) {
+                          e.preventDefault();
+                        }
+                      }} 
                     >
-                      Classic
+                      {aiSaveExists ? "Session in progress" : "Classic"}
                     </Link>
 
-                    <Link className="px-4 py-2 bg-indigo-400/70 hover:bg-indigo-400/90 transition border-l border-white/20"
+                    <Link className={`${classicSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
                       to={`/review/${deck.id}?mode=ai`} 
+                        onClick={(e) => {
+                        if (classicSaveExists) {
+                          e.preventDefault();
+                        }
+                      }} 
                     >
-                      Quiz
+                      {classicSaveExists ? "Session in progress" : "Quiz"}
                     </Link>
                   </div>
                 
-              </div>
-            ))}
+              </div> 
+                );
+            })}
+              
           </div>
         }
         {defaultMode !== "none" &&
           <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113]">
-            {decks.map((deck) => (
-              <Link
-                key={deck.id}
-                to={`/review/${deck.id}?mode=${defaultMode}`}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors"
-              >
-                <div className="font-medium text-lg flex flex-col gap-2">
-                  <span>{deck.name}</span>
-                  {(() => {
-                    const active = sessionInfos.find((s) => s.deckId === deck.id && defaultMode === s.mode.toLowerCase());
-                    return active ? (
-                      <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-[11px] uppercase tracking-wide">
-                        <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
-                        <span className="font-semibold">{active.mode} session</span>
-                        <span className="text-emerald-200/80">• {active.remaining} left</span>
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-                
-                <div className="opacity-60 text-sm text-gray-400">{countDue(deck.id)} due</div>
-              </Link>
-            ))}
+            {decks.map((deck) => {
+              const currentMode = defaultMode.toLowerCase();
+              const otherMode = currentMode === "ai" ? "classic" : "ai";
+              const otherModeActive = sessionInfos.some((s) => s.deckId === deck.id && s.mode === otherMode);
+
+              return (
+                <Link
+                  key={deck.id}
+                  to={`/review/${deck.id}?mode=${defaultMode}`}
+                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors ${otherModeActive ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+                  onClick={(e) => {
+                    if (otherModeActive) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  <div className="font-medium text-lg flex flex-col gap-2">
+                    <span>{deck.name}</span>
+                    {(() => {
+                      const active = sessionInfos.find((s) => s.deckId === deck.id && currentMode === s.mode);
+                      return active ? (
+                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-[11px] uppercase tracking-wide">
+                          <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+                          <span className="font-semibold">{active.mode} session</span>
+                          <span className="text-emerald-200/80"> {active.remaining} left</span>
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
+                  
+                  <div className="opacity-60 text-sm text-gray-400">
+                    {otherModeActive ? "Other mode in progress" : `${countDue(deck.id)} due`}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
         }
