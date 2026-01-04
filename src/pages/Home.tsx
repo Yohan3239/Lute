@@ -3,28 +3,45 @@ import { Link } from "react-router-dom";
 import { Card, Deck } from "../lib/types";
 import { listDecks } from "../lib/decks";
 import { DEFAULT_SETTINGS } from "../lib/constants";
-import { read } from "original-fs";
 
-export function readStreak() {
+function readStreak() {
   return {
     globalStreak: Number(localStorage.getItem("globalStreak") || "0"),
     lastStreakDate: localStorage.getItem("lastStreakDate") || "",
   };
 }
 
+const resetStreak = () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const lastStreakDate = localStorage.getItem("lastStreakDate") || "1970-01-01";
+  
+  if (lastStreakDate === today || lastStreakDate === yesterday) {
+    return; // is fine
+  } else {
+    localStorage.setItem("globalStreak", "0");
+  }
+}
 export default function Home() {
   const [cards, setCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [{ globalStreak, lastStreakDate }, setStreakState] = useState(readStreak);
 
   useEffect(() => {
+    resetStreak();
+    setStreakState(readStreak());
     window.api.readCards().then(setCards);
     listDecks().then(setDecks);
   }, []);
 
   useEffect(() => {
     // refresh when returning to the tab/home
-    const onFocus = () => setStreakState(readStreak());
+    const onFocus = () => {
+      resetStreak();
+
+      setStreakState(readStreak());
+    }
+    
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -94,14 +111,16 @@ export default function Home() {
           <div className="opacity-70 text-gray-400">Learning</div>
         </div>
         <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)] ">
-          {globalStreak > 0 &&
-          <div className="text-5xl font-bold text-indigo-300 hover:scale-105">{globalStreak}</div>
-          } {globalStreak === 0 &&
+          {globalStreak > 0 && 
+          <div className="text-5xl font-bold text-indigo-300 hover:scale-105">{globalStreak }</div>
+          } 
+          {globalStreak === 0 &&
           <div className="text-3xl font-bold text-gray-500 hover:scale-105">{globalStreak}</div>
           }
           <div className="text-sm tracking-wide text-gray-400">Streak</div>
-          { lastStreakDate === new Date().toISOString().slice(0,10) && <div className="text-xs text-gray-500">Keep it up!</div> }
-          { lastStreakDate !== new Date().toISOString().slice(0,10) && <div className="text-xs text-gray-500">Consecutive review days</div> }
+          <div className="text-xs tracking-wide text-gray-400/70">
+            Last Review: {lastStreakDate}
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,4 @@
 import { useLocation } from "react-router-dom";
-import { DEFAULT_SETTINGS } from "../lib/constants";
-import { useState } from "react";
 type RouteMeta = {
   match: RegExp;
   title: string;

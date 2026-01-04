@@ -48,6 +48,18 @@ export default function Browse() {
     setSelected([]);
   };
 
+  // Toggle select all visible cards
+  const handleSelectAll = () => {
+    const visibleIds = filteredCards.map((c) => c.id);
+    const allSelected = visibleIds.every((id) => selected.includes(id));
+
+    setSelected((prev) =>
+      allSelected
+        ? prev.filter((id) => !visibleIds.includes(id)) // unselect visible
+        : Array.from(new Set([...prev, ...visibleIds])) // add visible
+    );
+  };
+
   // --------------------------
   // Bulk Move to Deck
   // --------------------------
@@ -102,43 +114,53 @@ export default function Browse() {
       {/* MAIN TABLE AREA */}
       <div className="flex-1 p-4 overflow-auto">
         {/* Bulk actions */}
-        {selected.length > 0 && (
+
+        
           <div className="flex gap-3 mb-4">
-            <button
-              className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
-              onClick={handleDeleteClick}
-            >
-              Delete ({selected.length})
+            <button 
+              className="px-4 py-2 rounded text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+              onClick={handleSelectAll}
+              >Select All ({filteredCards.length})
             </button>
-            {showDeleteConfirm && (
-              <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-                <div className="bg-[#16161a] p-4 rounded border border-white/10">
-                  <p>Are you sure? This action cannot be reversed.</p>
-                  <div className="mt-4 flex gap-2 justify-end">
-                    <button className="px-4 py-2 rounded text-sm bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500" 
-                    onClick={() => {setShowDeleteConfirm(false); handleBulkDelete();}}>Delete</button>
-                    <button className="px-4 py-2 rounded text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
-                    onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+            {selected.length > 0 && (
+              <div>
+              <button
+                className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
+                onClick={handleDeleteClick}
+              >
+                Delete ({selected.length})
+              </button>
+            
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+                  <div className="bg-[#16161a] p-4 rounded border border-white/10">
+                    <p>Are you sure? This action cannot be reversed.</p>
+                    <div className="mt-4 flex gap-2 justify-end">
+                      <button className="px-4 py-2 rounded text-sm bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500" 
+                      onClick={() => {setShowDeleteConfirm(false); handleBulkDelete();}}>Delete</button>
+                      <button className="px-4 py-2 rounded text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+                      onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+                    </div>
                   </div>
                 </div>
+              )}
+              <select
+                className="bg-[#16161a] border border-white/10 px-3 py-1 rounded text-gray-200"
+                defaultValue=""
+                onChange={(e) => handleMoveToDeck(e.target.value)}
+              >
+                <option value="" disabled>
+                  Move to deck…
+                </option>
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deck.name}
+                  </option>
+                ))}
+              </select>
               </div>
             )}
-            <select
-              className="bg-[#16161a] border border-white/10 px-3 py-1 rounded text-gray-200"
-              defaultValue=""
-              onChange={(e) => handleMoveToDeck(e.target.value)}
-            >
-              <option value="" disabled>
-                Move to deck…
-              </option>
-              {decks.map((deck) => (
-                <option key={deck.id} value={deck.id}>
-                  {deck.name}
-                </option>
-              ))}
-            </select>
           </div>
-        )}
 
         {/* TABLE */}
         <table className="w-full text-left border-collapse">
