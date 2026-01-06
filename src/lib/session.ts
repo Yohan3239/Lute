@@ -10,13 +10,15 @@ export class Session {
   private game: GameState = initialGameState();
   private deckId: string = "";
   private isAIMode: boolean = false;
+  private isFullMode: boolean = false;
 
-  constructor(cards: VariantCard[], startIndex = 0, gameState = initialGameState(), deck = "", isAI = false) {
+  constructor(cards: VariantCard[], startIndex = 0, gameState = initialGameState(), deck = "", isAI = false, isFull = false,) {
     this.queue = cards;
     this.index = startIndex;
     this.game = gameState;
     this.deckId = deck;
     this.isAIMode = isAI;
+    this.isFullMode = isFull;
   }
 
   get current(): VariantCard | null {
@@ -56,6 +58,10 @@ export class Session {
 
   get isAI() {
     return this.isAIMode;
+  }
+
+  get isFull() {
+    return this.isFullMode;
   }
   setGame(state: GameState) {
     this.game = state;

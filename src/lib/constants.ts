@@ -6,6 +6,7 @@ export type SettingsState = {
   enableMultipleChoice: boolean;
   enableCloze: boolean;
   enableTrueFalse: boolean;
+  defaultRunMaxLength: Number;
 };
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -15,4 +16,5 @@ export const DEFAULT_SETTINGS: SettingsState = {
   enableMultipleChoice: true,
   enableCloze: true,
   enableTrueFalse: true,
+  defaultRunMaxLength: 30
 };

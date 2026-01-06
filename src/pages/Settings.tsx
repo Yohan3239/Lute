@@ -24,6 +24,8 @@ export default function Settings() {
           parsed.enableCloze !== undefined ? Boolean(parsed.enableCloze) : DEFAULT_SETTINGS.enableCloze,
         enableTrueFalse:
           parsed.enableTrueFalse !== undefined ? Boolean(parsed.enableTrueFalse) : DEFAULT_SETTINGS.enableTrueFalse,
+        defaultRunMaxLength:
+          Number(parsed.defaultRunMaxLength) || DEFAULT_SETTINGS.defaultRunMaxLength,
       };
     } catch {
       return DEFAULT_SETTINGS;
@@ -134,6 +136,32 @@ export default function Settings() {
               />
               <span>Enable True/False</span>
             </label>
+            
+            <span className="block text-sm font-medium text-gray-200 mb-2">Default Run Length</span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="opacity-80">Sprint (15)</span>
+              <div className="relative inline-block w-11 h-5">
+                <input
+                  id="switch-component"
+                  type="checkbox"
+                  checked={settings.defaultRunMaxLength === 30}
+                  onChange={(e) => 
+                    setSettings((prev) => {
+                      return {
+                        ...prev,
+                        defaultRunMaxLength: (e.target.checked ? 30 : 15)
+                      }
+                    })
+                  }
+                  className="peer appearance-none w-11 h-5 bg-slate-100 rounded-full checked:bg-slate-800 cursor-pointer transition-colors duration-300"
+                />
+                <label
+                  htmlFor="switch-component"
+                  className="absolute top-0 left-0 w-5 h-5 bg-white rounded-full border border-slate-300 shadow-sm transition-transform duration-300 peer-checked:translate-x-6 peer-checked:border-slate-800 cursor-pointer"
+                />
+              </div>
+              <span className="opacity-80">Full (30)</span>
+            </div>
           </div>
         </div>
       </div>

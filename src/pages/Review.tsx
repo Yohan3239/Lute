@@ -38,12 +38,13 @@ return Object.keys(localStorage).filter((i) => i.startsWith("reviewSession-")).m
       key,
       deckId: data.deckId || deckIdFromKey,
       mode: data.isAIMode ? "ai" : "classic",
+      isFull: data.isFullMode,
       remaining,
     };
   } catch {
     return null;
   } 
-}).filter(Boolean) as Array<{ deckId: string; mode: string; remaining: number }>;
+}).filter(Boolean) as Array<{ deckId: string; mode: string; isFull: boolean; remaining: number }>;
 
 }
 function ProcPopups({ popups }: { popups: ProcPopupProps[] }) {
@@ -200,7 +201,8 @@ export default function Review() {
       index: s.position,
       gameState: s.gameState,
       deckId: s.deck,
-      isAIMode: s.isAI
+      isAIMode: s.isAI,
+      isFullMode: s.isFull,
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
   };
@@ -214,7 +216,6 @@ export default function Review() {
       const parsed = JSON.parse(raw);
       if (!parsed?.queue) return null;
 
-      // ✅ clamp index (in case of corruption / old saves)
       const index = Math.min(Math.max(parsed.index ?? 0, 0), parsed.queue.length);
 
       const safeGameState: GameState = parsed.gameState ?? initialGameState();
@@ -223,7 +224,8 @@ export default function Review() {
         index,
         safeGameState,
         parsed.deckId ?? deckId ?? "",
-        parsed.isAIMode ?? isAIReview
+        parsed.isAIMode ?? isAIReview,
+        parsed.isFullMode ?? runMaxLength === 30,
       );
       return { session: restored, gameState: safeGameState };
     } catch (err) {
@@ -232,6 +234,15 @@ export default function Review() {
       return null;
     }
   };
+  const endSessionEarly = () => {
+    if (!SESSION_KEY) return;
+    const confirm = window.confirm("End this session? Current score will be lost.");
+    if (!confirm) return;
+    localStorage.removeItem(SESSION_KEY);
+    sessionRef.current = null;
+    setSession(null);
+    setFinished(true);
+  }
 
   const loadSettings = () => {
     const raw = localStorage.getItem("settings");
@@ -250,6 +261,8 @@ export default function Review() {
   const enableMultipleChoice = prev?.enableMultipleChoice ?? DEFAULT_SETTINGS.enableMultipleChoice;
   const enableCloze = prev?.enableCloze ?? DEFAULT_SETTINGS.enableCloze;
   const enableTrueFalse = prev?.enableTrueFalse ?? DEFAULT_SETTINGS.enableTrueFalse;
+  const defaultRunMaxLength = prev?.defaultRunMaxLength ?? DEFAULT_SETTINGS.defaultRunMaxLength;
+  const [runMaxLength, setRunMaxLength] = useState(() => defaultRunMaxLength);
 
   // Streak bump on review end
   const streakLoggedRef = useRef(false);
@@ -286,6 +299,7 @@ export default function Review() {
   useEffect(() => {
     if (!reviewMode) {
       listDecks().then(setDecks);
+      setRunMaxLength(defaultRunMaxLength);
       window.api.readCards().then(setCards);
     }
   }, [reviewMode]);
@@ -314,7 +328,7 @@ export default function Review() {
     (async () => {
       const all = await window.api.readCards();
       const filtered = all.filter((c) => c.deckId === deckId);
-      const due = getDueCards(filtered);
+      const due = getDueCards(filtered).slice(0, runMaxLength);
       const persisted = loadPersistedSession();
 
       if (persisted) {
@@ -364,7 +378,7 @@ export default function Review() {
         })
       );
       
-      const s = new Session(VariantList, 0, initialGameState(), deckId || "", isAIReview);
+      const s = new Session(VariantList, 0, initialGameState(), deckId || "", isAIReview, (runMaxLength === 30));
       sessionRef.current = s;
       setGame(initialGameState());
       setSession(s);
@@ -426,7 +440,27 @@ export default function Review() {
 
     return (
       <div className="text-gray-100 p-6">
-        <h1 className="text-2xl mb-4">Select Deck to review</h1>
+        <div className= "text-gray-100 p-6 flex flex-row justify-between">
+          <h1 className="text-2xl mb-4">Select Deck to review</h1>
+          <div className="flex items-center gap-3 text-gray-100 text-xl">
+            <span className="opacity-80">Sprint | 15</span>
+            <div className="relative inline-block w-[4.25rem] h-8">
+              <input
+                id="switch-component"
+                type="checkbox"
+                checked={runMaxLength === 30}
+                onChange={(e) => setRunMaxLength(e.target.checked ? 30 : 15)}
+                className="peer appearance-none w-[4.25rem] h-8 bg-indigo-200 rounded-full checked:bg-indigo-500 cursor-pointer transition-colors duration-300 z-0"
+              />
+              <label
+                htmlFor="switch-component"
+                className="absolute top-0 left-0 w-8 h-8 bg-white rounded-full border border-slate-300 shadow-sm transition-transform duration-300 peer-checked:translate-x-9 peer-checked:border-slate-800 cursor-pointer z-10"
+              />
+            </div>
+            <span className="opacity-80">Full | 30</span>
+          </div>
+        </div>
+
         {defaultMode === "none" &&
           <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113]">
             {decks.map((deck) => {
@@ -438,29 +472,12 @@ export default function Review() {
                   <div className="font-medium text-lg">{deck.name}</div>
                   {(() => {
                     const active = sessionInfos.find((s) => s.deckId === deck.id);
-                    const allActives = sessionInfos.filter((s) => s.deckId === deck.id);
-                    if (allActives.length != 2) {
-                      return active ? (
+                    return active ? (
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-xs uppercase tracking-wide">
-                        <span className="font-semibold">{active.mode} session</span>
-                        <span className="text-emerald-200/80">{active.remaining} left</span>
+                        <span className="font-semibold">{active.mode} {active.isFull ? "Full" : "Sprint"} session</span>
+                        <span className="text-emerald-200/80">{active.remaining} left</span> 
                       </div>
                     ) : null;
-                    } else {
-                        return allActives ? (
-                          <div className="flex flex-row gap-4"> 
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-xs uppercase tracking-wide">
-                              <span className="font-semibold">{allActives[0].mode} session</span>
-                              <span className="text-emerald-200/80"> {allActives[0].remaining} left</span>
-                            </div>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-100 border border-indigo-300/30 text-xs uppercase tracking-wide">
-                              <span className="font-semibold">{allActives[1].mode} session</span>
-                              <span className="text-indigo-200/80"> {allActives[1].remaining} left</span>
-                            </div>
-                          </div>
-                        ) : null;
-                      
-                    }
 
                   })()}
 
@@ -525,7 +542,7 @@ export default function Review() {
                       return active ? (
                         <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-[11px] uppercase tracking-wide">
                           <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
-                          <span className="font-semibold">{active.mode} session</span>
+                          <span className="font-semibold">{active.mode} {active.isFull ? "Full" : "Sprint"} session</span>
                           <span className="text-emerald-200/80"> {active.remaining} left</span>
                         </span>
                       ) : null;
@@ -735,7 +752,17 @@ export default function Review() {
       animate={shakeControls}
       initial={{ x: 0 }}
     >
-      <h1 className="text-2xl mb-4">Reviewing...</h1>
+      <div className="flex flex-row gap-3 items-center justify-between mb-4">
+        <h1 className="text-2xl mb-4">Reviewing...</h1>
+        <button
+          className="px-3 py-2 rounded-md bg-rose-500/15 text-rose-100 border border-rose-300/40 hover:bg-rose-500/25 transition"
+          onClick={endSessionEarly}
+        >
+          End session
+        </button>
+      </div>
+      
+      
       <div className="flex flex-row gap-6 items-start">
       <div className="w-2/3 grid gap-4">
         <AnimatePresence mode="wait">
@@ -774,7 +801,11 @@ export default function Review() {
                 {`Time: ${Math.floor(stopwatchTimer / 60)}:${(stopwatchTimer % 60).toString().padStart(2, '0')}`}
               </motion.span>
             </div>
-            <div className="text-lg font-semibold text-gray-50">{card.variant?.prompt}</div>
+            <div
+              className={`text-gray-50 ${v?.type === "classic" ? "text-2xl md:text-3xl leading-snug" : "text-lg"}`}
+            >
+              {card.variant?.prompt}
+            </div>
           </motion.div>
         </AnimatePresence>
 
@@ -853,13 +884,13 @@ export default function Review() {
             <div>
               {showAnswer && (
               <motion.div
-                className="mt-3 p-2 rounded bg-[#16161a] border border-white/10"
+                className="mt-3 p-4 rounded bg-[#16161a] border border-white/10"
                 initial="hidden"
                 animate="show"
                 variants={listVariants}
               >
                 <span className="text-sm opacity-60 mb-1 text-gray-400">Answer</span>
-                <div className="mt-2 text-gray-100">{v.answer}</div>
+                <div className="mt-2 text-gray-100 text-2xl md:text-3xl leading-snug">{v.answer}</div>
                 <div className="mt-4 grid grid-cols-4 gap-3">
                   {["wrong", "hard", "good", "easy"].map((grade) => (
                     <motion.button
