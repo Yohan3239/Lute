@@ -1,26 +1,23 @@
 Lute 🎼
 
-A focused, game-inspired spaced repetition app
+A focused, Roguelike spaced repetition app
 
 Lute is an experimental spaced-repetition learning app that blends classic SRS principles with short, focused review runs and game-like feedback.
 
-Instead of infinite queues, Lute uses snapshot-based sessions (15 or 30 cards) with optional retry mini-sessions to simulate short learning delays. The goal is to make studying feel less overwhelming while keeping the core memory benefits of spaced repetition.
+Instead of infinite queues, Lute uses snapshot-based Roguelike sessions (15 or 30 cards) with optional retry mini-sessions to simulate short learning delays. The goal is to make studying feel less overwhelming while keeping the core memory benefits of spaced repetition.
 
 This project is actively evolving.
 
 ✨ Key ideas
 
 Snapshot sessions
-Reviews happen in fixed runs (Sprint: 15 cards, Full: 30 cards). No endless queues.
+Reviews happen in fixed runs (Sprint: 15 cards, Full: 30 cards).
 
-Retry mini-sessions
-Cards marked Wrong or Hard during learning are collected and immediately reviewed again after the main run, approximating short learning delays (e.g. 5–20 minutes).
-
-Anki-inspired SRS (not a clone)
-Uses learning, review, and relearning phases with ease factors and lapses, inspired by research from SuperMemo and Anki — but implemented independently.
+Anki-inspired SRS
+Uses learning, review, and relearning phases with ease factors and lapses, inspired by research from SuperMemo and Anki but implemented independently
 
 Game feedback, not punishment
-Points, multipliers, streaks, and time-based bonuses encourage consistency without locking progress behind perfection.
+Balatro-inspired points, multipliers, streaks, levelling and time-based bonuses encourage consistency without locking progress behind perfection.
 
 Multiple review formats
 
@@ -61,7 +58,7 @@ Relearning
 
 Short delay, then return to review at a reduced interval
 
-Note: Because sessions are snapshot-based, short delays are implemented via retry mini-sessions rather than real-time re-queuing.
+Note: Because sessions are snapshot-based, short delays are implemented via re-queuing into the snapshot sessions.
 
 ⚠️ Project status
 
@@ -85,17 +82,17 @@ Storage: Local (for now)
 
 SRS Engine: Custom implementation
 
-AI (optional): LLM-generated card variants
+AI (optional): LLM-generated card variants, BYOK
 
 📌 Non-goals (for now)
 
 Perfect Anki parity
 
-Full SuperMemo optimization
-
 Cloud sync
 
 Mobile apps
+
+More Game!
 
 The focus is feel, consistency, and iteration, not theoretical optimality.
 
