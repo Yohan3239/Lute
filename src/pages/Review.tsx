@@ -8,13 +8,15 @@ import { generateMCQ, generateCloze, generateTrueFalse } from "../lib/llm";
 import levenshtein  from "js-levenshtein";
 import { motion, AnimatePresence, useAnimation, useSpring, useMotionValue } from "framer-motion";
 import { DEFAULT_SETTINGS } from "../lib/constants";
-import { GameState, initialGameState, calculateBasePoints, calculateTimePoints, calculateMultPoints, savePointstoScore, calculateMultiplierStreak, calculateTimeMult } from "../lib/gameLogic";
+import { GameState, initialGameState, calculateBasePoints, calculateTimePoints, calculateMultPoints, savePointstoScore, calculateMultiplierStreak, calculateTimeMult, calculateReturnPoints } from "../lib/gameLogic";
 import { Grade } from "../lib/srs";
+
+const REQUEUE_WINDOW_MS = 15 * 60 * 1000; // bring back cards due within ~15 minutes
 
 type ProcPopupProps = {
   id: string;
   text: string;
-  type: "points" | "mult";
+  type: "points" | "mult" | "return";
   createdAt: number;
   offsetX?: number;
 }
@@ -51,7 +53,10 @@ function ProcPopups({ popups }: { popups: ProcPopupProps[] }) {
   const bgFor = (type: ProcPopupProps["type"]) =>
     type === "mult"
       ? "bg-indigo-500/15 border-indigo-300/30 text-indigo-100"
-      : "bg-rose-500/15 border-rose-300/30 text-rose-100";
+      : type === "points"
+        ? "bg-rose-500/15 border-rose-300/30 text-rose-100"
+        : "bg-rose-500/30 border-rose-300/60 text-rose-100"
+      
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-visible">
@@ -167,10 +172,10 @@ export default function Review() {
 
   const [manualgradingdisabled, setManualGradingDisabled] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
+
+  
   const reviewMode = Boolean(deckId);
-
-
-  function spawnPopup(text: string, type: "points" | "mult", ttl = 600) {
+  function spawnPopup(text: string, type: "points" | "mult" | "return", ttl = 600) {
     const id = crypto.randomUUID();
     const offsetX = Math.floor(Math.random() * 30 - 15); // small drift so they don't stack
     const popup: ProcPopupProps = { id, text, type, createdAt: Date.now(), offsetX };
@@ -263,6 +268,7 @@ export default function Review() {
   const enableTrueFalse = prev?.enableTrueFalse ?? DEFAULT_SETTINGS.enableTrueFalse;
   const defaultRunMaxLength = prev?.defaultRunMaxLength ?? DEFAULT_SETTINGS.defaultRunMaxLength;
   const [runMaxLength, setRunMaxLength] = useState(() => defaultRunMaxLength);
+  const REQUEUE_INSERT_OFFSET = runMaxLength === 30 ? 12 : 6; // put requeued cards a few spots ahead
 
   // Streak bump on review end
   const streakLoggedRef = useRef(false);
@@ -361,7 +367,7 @@ export default function Review() {
       const VariantList : VariantCard[] = await Promise.all(
         due.map(async (card) => {
           const classicVariant: Classic = { type: "classic", prompt: card.question, answer: card.answer };
-          if (!isAIReview) return { ...card, variant: classicVariant }; // no variant
+          if (!isAIReview) return { ...card, variant: classicVariant, runReturnedCount: 0 }; // no variant
           const options = [];
 
           if (enableCloze) options.push(() => generateCloze(card));
@@ -374,7 +380,7 @@ export default function Review() {
 
           const choice = options[Math.floor(Math.random() * options.length)];
           const variant = await choice();
-          return { ...card, variant };
+          return { ...card, variant, runReturnedCount: 0 };
         })
       );
       
@@ -601,16 +607,19 @@ export default function Review() {
     return <div className="text-gray-100 p-6">Finishing...</div>;
   }
   type Step = {name:string, fn:Function}
-  function makeSteps(grade: Grade, timeTaken: number):Step[] {
+  function makeSteps(grade: Grade, timeTaken: number, isReturned: boolean):Step[] {
+    isReturned = isReturned ?? false;
     return [
     {name: "base", fn:(prev: GameState) => calculateBasePoints(prev, grade)},
 
     {name: "timePoints", fn:(prev: GameState) => calculateTimePoints(prev, timeTaken)},
 
+    ...(isReturned&&(grade === "good" || grade === "easy") ? [{name: "returnPoints", fn:(prev: GameState) => calculateReturnPoints(prev)}] : []),
+
     {name: "timeMult", fn:(prev: GameState) => calculateTimeMult(prev, timeTaken)},
 
 
-    {name: "streak", fn:(prev: GameState) => calculateMultiplierStreak(prev, grade)},
+    ...(grade !== "wrong" ? [{name: "streak", fn:(prev: GameState) => calculateMultiplierStreak(prev, grade)}] : []),
 
     {name: "mult", fn:(prev: GameState) => calculateMultPoints(prev)},
     
@@ -625,16 +634,16 @@ export default function Review() {
     const s = sessionRef.current;
     if (!s) return;
     setShowAnswer(true);
-    const updated = s.grade(grade);
+    const updated = s.grade(grade, card.runReturnedCount);
     if (!updated) return;
     // delay the advance so the user can see feedback, but move using the latest game state
     
     // Save updated card
     const all = await window.api.readCards();
-    const saved = all.map((c) => (c.id === updated.id ? {...updated, variant: undefined } : c));
+    const saved = all.map((c) => (c.id === updated.id ? {...updated, variant: undefined,  runReturnedCount: undefined} : c));
     await window.api.saveCards(saved);
 
-    const steps = makeSteps(grade, timeTaken);
+    const steps = makeSteps(grade, timeTaken, isReturned ?? 0);
     let state = game ?? initialGameState();
     let incDelay = 800;
     let shrinkFactor = 0.75;
@@ -659,13 +668,26 @@ export default function Review() {
       if (step.name === "timeMult") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Speed`, "mult");
       if (step.name === "streak") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Streak`, "mult");
       if (step.name === "mult") spawnPopup(`x${state.multiplier.toFixed(2)} Mult`, "points");
+      if (step.name === "returnPoints") spawnPopup(`+${state.points - before.points} RETURN!!`, "return");
 
       setGame(state);
       await new Promise(r => setTimeout(r, incDelay)); // optional delay
       incDelay*=shrinkFactor;
     }
 
+    const requeueThreshold = Date.now() + REQUEUE_WINDOW_MS;
+    const REQUEUE_INSERT_FLOOR = 4;
+    if (updated.nextReview <= requeueThreshold) {
+      const queue = s.results;
+      const insertAt = Math.min(s.position + REQUEUE_INSERT_OFFSET, queue.length);
+      if (queue.length - s.position >= REQUEUE_INSERT_FLOOR) {
+        const returnedCount = updated.runReturnedCount ?? 0;
+        const returnedCard = {...updated, runReturnedCount: returnedCount+1};
+        
+        queue.splice(insertAt, 0, { ...returnedCard });
+      }
 
+    }
 
     if (s.isFinished()) {
       streakBump();
@@ -674,7 +696,7 @@ export default function Review() {
     } else {
       setGame(state);
       s.next();
-      const nextSession = new Session([...s.results], s.position, state, deckId || "", isAIReview);
+      const nextSession = new Session([...s.results], s.position, state, deckId || "", isAIReview, (runMaxLength === 30));
       sessionRef.current = nextSession;
       setTimeout(() => {
         setSession(nextSession); // keep cursor position, with updated game state
@@ -745,6 +767,7 @@ export default function Review() {
     
   }
   const v = card.variant;
+  const isReturned = (card.runReturnedCount ?? 0) > 0;
 
   return (
     <motion.div
@@ -776,7 +799,7 @@ export default function Review() {
             }
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`p-4 rounded bg-[#111113] border border-white/10 ${
+            className={`relative overflow-hidden p-4 rounded bg-[#111113] border border-white/10 ${
               gradeFlash === "easy"
                 ? "ring-2 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
                 : gradeFlash === "good"
@@ -788,15 +811,37 @@ export default function Review() {
                 : ""
             }`}
           >
+            {isReturned && (
+              <>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent animate-pulse" />
+                <motion.div
+                  className="pointer-events-none absolute -left-4 -top-4 h-16 w-16 rounded-full bg-amber-500/25 blur-2xl"
+                  animate={{ scale: [1, 1.1, 0.95, 1], opacity: [0.65, 0.9, 0.7, 0.65] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <motion.div
+                  className="pointer-events-none absolute -right-4 -bottom-6 h-16 w-16 rounded-full bg-orange-400/25 blur-2xl"
+                  animate={{ scale: [0.9, 1.05, 0.9], opacity: [0.5, 0.85, 0.5] }}
+                  transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                />
+                <div className="pointer-events-none absolute inset-0 border border-amber-400/30 rounded animate-pulse" />
+              </>
+            )}
             <div className="flex items-center gap-3 mb-3">
               <span className="text-sm opacity-70 text-gray-300">Question</span>
               <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide">
                 {v ? (v.type === "mcq" ? "MCQ" : v.type === "cloze" ? "Cloze" : v.type === "classic" ? "Flashcard" : "True/False") : "Flashcard"}
               </span>
+              <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide text-gray-300">
+                {card.status}
+              </span>
+              {isReturned && 
+                <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide text-rose-300">
+                  Returned
+                </span>
+              }
               <motion.span
                 className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 inline-block"
-                animate={{ scale: [1, 1.05, 1], opacity: [1, 0.9, 1] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
               >
                 {`Time: ${Math.floor(stopwatchTimer / 60)}:${(stopwatchTimer % 60).toString().padStart(2, '0')}`}
               </motion.span>
@@ -927,7 +972,7 @@ export default function Review() {
             </motion.div>
             <div className="relative flex-1 py-2 rounded-xl bg-[#0d0f14] border border-white/10 text-center text-5xl font-semibold text-gray-200 ring-rose-300/80 ring-4 ">
               <AnimatedNumber value={game.points} pulseKey={pointsPulse} floatDigits />
-              <ProcPopups popups={popups.filter(p => p.type === "points")}/>
+              <ProcPopups popups={popups.filter(p => p.type === "points" || p.type === "return")}/>
             </div>
           </div>
           <div>

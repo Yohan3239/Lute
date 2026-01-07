@@ -63,3 +63,7 @@ export function savePointstoScore(gameState: GameState) {
     const result: GameState = {...gameState, score:gameState.points+gameState.score, points:0};
     return result;
 }
+
+export function calculateReturnPoints(gameState: GameState) {
+    return {...gameState, points: gameState.points + 250}
+}

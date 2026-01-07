@@ -4,7 +4,7 @@ import { Card } from "./types";
 // ---- Tunable knobs (roughly Anki-ish) ----
 
 // Learning steps for NEW cards (in minutes)
-const LEARNING_STEPS_MIN = [10, 1440]; // 10 minutes, 1 day
+const LEARNING_STEPS_MIN = [5, 30];
 
 // Relearning steps for LAPSED cards (in minutes)
 const LAPSE_STEPS_MIN = [10]; // just 10 minutes for now
@@ -13,10 +13,11 @@ const LAPSE_STEPS_MIN = [10]; // just 10 minutes for now
 const START_EASE = 2.5;
 const MIN_EASE = 1.3;
 const EASY_BONUS = 1.3;          // extra bonus for "Easy"
-const LAPSE_INTERVAL_MULT = 0.5; // old interval × 0.5 on lapse
+const LAPSE_INTERVAL_MULT = 0.7; // old interval × 0.5 on lapse
 
 // Interval constants
 const DAY_MS = 1000 * 60 * 60 * 24;
+const GRADUATING_INTERVAL_DAYS = 1;
 
 export type Grade = "easy" | "good" | "hard" | "wrong";
 
@@ -64,11 +65,17 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
       card.nextReview = t + card.interval * DAY_MS;
       return card;
     }
+    if (grade === "hard") {
+      card.status = "learning";
+      card.learningStep = 0;
+      card.nextReview = t + LEARNING_STEPS_MIN[0] * 60_000;
+      return card;
+    }
 
-    // NEW + GOOD/HARD → learning mode, step 0
+    // NEW + GOOD → learning mode, step 1
     card.status = "learning";
-    card.learningStep = 0;
-    card.nextReview = t + LEARNING_STEPS_MIN[0] * 60_000;
+    card.learningStep = 1;
+    card.nextReview = t + DAY_MS;
     return card;
   }
 
@@ -98,9 +105,7 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
     card.reps += 1;
 
     // If this was genuinely new (no interval), start with 1 day
-    if (card.interval <= 0) {
-      card.interval = 1;
-    }
+    card.interval = GRADUATING_INTERVAL_DAYS;
 
     // Final grade after graduation
     if (grade === "good") {

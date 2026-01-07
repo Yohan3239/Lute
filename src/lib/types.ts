@@ -3,7 +3,7 @@ import { MCQ, Cloze, TrueFalse } from "./llm";
 export type CardStatus = "new" | "learning" | "review" | "relearning";
 export type Classic = { type: "classic"; prompt: string; answer: string };
 export type ReviewVariant = MCQ | Cloze | TrueFalse | Classic;
-export type VariantCard = Card & {variant:ReviewVariant | null};
+export type VariantCard = Card & {variant:ReviewVariant | null; runReturnedCount: number;};
 
 export interface Card {
   id: string;
