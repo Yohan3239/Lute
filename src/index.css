@@ -17,6 +17,31 @@ html, body, #root {
   font-family: 'Inter', sans-serif;
 }
 
+/* Global scrollbar styling */
+:root {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #34343c #0f1014;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: #0f1014;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2b2b33, #1c1c22);
+  border: 2px solid #0f1014;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #3b3b43;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Hide scrollbars on the main content area (still scrollable) */
 .no-scrollbar {
   scrollbar-width: none; /* Firefox */

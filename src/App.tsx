@@ -11,6 +11,7 @@ import DeckDetail from "./pages/DeckDetail";
 import Browse from "./pages/Browse";
 import Settings from "./pages/Settings";
 import Import from "./pages/Import";
+import DeckSettings from "./pages/DeckSettings";
 export default function App() {
   return (
     <HashRouter>
@@ -27,6 +28,8 @@ export default function App() {
 
               <Route path="/decks" element={<Decks />} />
               <Route path="/decks/:deckId" element={<DeckDetail />} />
+              <Route path="/decks/:deckId/settings" element={<DeckSettings />} />
+
               <Route path="/import" element={<Import />} />
 
               <Route path="/browse" element={<Browse />} />

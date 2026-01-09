@@ -70,10 +70,13 @@ export default function Sidebar() {
         <div className="absolute right-0 bottom-0 h-40 w-32 bg-purple-500/10 blur-3xl" />
       </div>
 
-      <h1 className="text-xl font-semibold text-white leading-snug">Lute</h1>
+      <h1
+        className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-lavender-400 to-peach-400 leading-snug"
+      >
+        Lute
+      </h1>
 
       <div className="relative flex-1">
-        <p className="mb-3 text-[11px] uppercase tracking-[0.28em] text-gray-400">Navigate</p>
         <div className="space-y-1">
           {navItems.map(item => {
             const active = isActive(item.to);
@@ -116,3 +119,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

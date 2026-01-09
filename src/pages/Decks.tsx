@@ -4,13 +4,15 @@ import { listDecks, createDeck } from "../lib/decks";
 import { Link } from "react-router-dom";
 import { Card } from "../lib/types";
 import { DEFAULT_DECK_ID } from "../lib/constants";
+import DeckSettings from "./DeckSettings";
 
 export default function DecksPage() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
-
+  const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
+  
   // Load decks + cards on page load
   useEffect(() => {
     listDecks().then(setDecks);
@@ -52,26 +54,41 @@ export default function DecksPage() {
       </div>
 
       {/* Deck list */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 ">
         {sortedDecks.map((deck) => (
           <Link
             key={deck.id}
             to={`/decks/${deck.id}`}
-            className="p-4 bg-[#111113] rounded-lg border border-white/5 hover:border-indigo-300/70 transition shadow-[0_0_30px_-10px_rgba(129,140,248,0.15)]"
+            className="p-4 bg-[#111113] flex rounded-lg border border-white/5 hover:border-indigo-300/70 transition shadow-[0_0_30px_-10px_rgba(129,140,248,0.15)]"
           >
-            <div className="flex items-center gap-2 text-xl font-semibold">
-              {deck.name}
+            <div>
+              <div className="flex items-center gap-2 text-xl font-semibold">
+                {deck.name}
 
-              {deck.id === DEFAULT_DECK_ID && (
-                <span className="text-xs px-2 py-1 rounded bg-white/10 uppercase opacity-80">
-                  DEFAULT
-                </span>
-              )}
+                {deck.id === DEFAULT_DECK_ID && (
+                  <span className="text-xs px-2 py-1 rounded bg-white/10 uppercase opacity-80">
+                    DEFAULT
+                  </span>
+                )}
+
+              </div>
+              <div className="opacity-60 mt-2 text-sm">
+                {countCards(deck.id)} cards
+              </div>
             </div>
 
-            <div className="opacity-60 mt-2 text-sm">
-              {countCards(deck.id)} cards
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setActiveDeckId(deck.id);
+              }}
+              className=" ml-auto rounded-md border border-white/10 bg-white/5 px-2 text-xl font-medium text-gray-200 hover:border-indigo-300/70"
+            >
+              ⋮
+            </button>
+
           </Link>
         ))}
       </div>
@@ -107,6 +124,27 @@ export default function DecksPage() {
           </div>
         </div>
       )}
+{activeDeckId && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/60"
+          onClick={() => setActiveDeckId(null)}
+          aria-label="Close settings"
+        />
+        <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+          <button
+            type="button"
+            onClick={() => setActiveDeckId(null)}
+            className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
+          >
+            Close
+          </button>
+          <DeckSettings deckId={activeDeckId} />
+        </div>
+      </div>
+      )}
+
     </div>
   );
 }

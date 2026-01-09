@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Deck, Card } from "../lib/types";
 import { listDecks, renameDeck, deleteDeck } from "../lib/decks";
+import { getNewCount } from "../lib/queue";
 import { DEFAULT_DECK_ID, DEFAULT_SETTINGS } from "../lib/constants";
+import DeckSettings from "./DeckSettings";
+import Import from "./Import";
+import AddCard from "./AddCard";
 
 export default function DeckDetail() {
   const { deckId } = useParams();
@@ -14,6 +18,9 @@ export default function DeckDetail() {
   const [showRename, setShowRename] = useState(false);
   const [newName, setNewName] = useState("");
   const [showDelete, setShowDelete] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const loadDefaultMode = () => {
     try {
       const raw = localStorage.getItem("settings");
@@ -27,7 +34,7 @@ export default function DeckDetail() {
   const defaultMode = loadDefaultMode();
 
   const now = Date.now();
-  const newCount = cards.filter(c => c.status === "new").length;
+  const newCount = deckId ? getNewCount(deckId, cards.filter(c => c.status === "new").length) : 0;
   const learningCount = cards.filter(c => c.status === "learning" || c.status === "relearning").length;
   const dueCount = cards.filter(c => c.nextReview <= now).length;
 
@@ -46,7 +53,7 @@ export default function DeckDetail() {
       const filtered = allCards.filter((c: Card) => c.deckId === deckId);
       setCards(filtered);
     });
-  }, [deckId]);
+  }, [deckId, showAddCard, showDelete, showImport, showRename, showSettings]);
 
   const handleRename = async () => {
     if (!deckId || !newName.trim()) return;
@@ -185,20 +192,27 @@ export default function DeckDetail() {
             </div>
           )}
 
-          <Link
-            to="/add"
-            state={{ deckId: deck.id }}
+          <button
+            type="button"
+            onClick={()=> setShowAddCard(true)}
             className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Add card
-          </Link>
-          <Link
-            to="/import"
-            state={{ deckId: deck.id }}
+          </button>
+          <button
+            type="button"
+            onClick={()=> setShowImport(true)}
             className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Import
-          </Link>
+          </button>
+          <button
+            type="button"
+            onClick={()=> setShowSettings(true)}
+            className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+          >
+            Settings
+          </button>
         </div>
 
         {/* CARD LIST */}
@@ -287,6 +301,68 @@ export default function DeckDetail() {
           </div>
         </div>
       )}
+      {showAddCard &&
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setShowAddCard(false)}
+            aria-label="Close settings"
+          />
+          <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+            <button
+              type="button"
+              onClick={() => setShowAddCard(false)}
+              className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
+            >
+              Close
+            </button>
+            <AddCard deckId={deckId ?? ""} />
+          </div>
+        </div>
+      }
+      {showImport &&
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setShowImport(false)}
+            aria-label="Close settings"
+          />
+          <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+            <button
+              type="button"
+              onClick={() => setShowImport(false)}
+              className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
+            >
+              Close
+            </button>
+            <Import deckId={deckId ?? ""} />
+          </div>
+        </div>
+      }
+      {showSettings &&
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/60"
+                onClick={() => setShowSettings(false)}
+                aria-label="Close settings"
+              />
+              <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(false)}
+                  className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
+                >
+                  Close
+                </button>
+                <DeckSettings deckId={deckId ?? ""} />
+              </div>
+        </div>
+      }
+
+
     </>
   );
 }

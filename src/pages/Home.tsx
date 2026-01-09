@@ -4,6 +4,7 @@ import { Card, Deck } from "../lib/types";
 import { listDecks } from "../lib/decks";
 import { DEFAULT_SETTINGS } from "../lib/constants";
 import { getSaveExists } from "./Review";
+import { getNewCount } from "../lib/queue";
 
 function readStreak() {
   return {
@@ -50,7 +51,10 @@ export default function Home() {
   const now = Date.now();
   // ---- Today Stats ----
   const dueToday = cards.filter((c) => c.nextReview <= now).length;
-  const newCards = cards.filter((c) => c.status === "new").length;
+  const newCards = decks.reduce((sum, deck) => {
+    const availableNew = cards.filter((c) => c.deckId === deck.id && c.status === "new").length;
+    return sum + getNewCount(deck.id, availableNew);
+  }, 0);
   const learningDue = cards.filter(
     (c) => c.status === "learning" && c.nextReview <= now
   ).length;
@@ -62,7 +66,7 @@ export default function Home() {
       ...deck,
       total: deckCards.length,
       due: deckCards.filter((c) => c.nextReview <= now).length,
-      new: deckCards.filter((c) => c.status === "new").length,
+      new: getNewCount(deck.id, deckCards.filter((c) => c.status === "new").length),
     };
   });
 

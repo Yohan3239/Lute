@@ -68,14 +68,14 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
     if (grade === "hard") {
       card.status = "learning";
       card.learningStep = 0;
-      card.nextReview = t + LEARNING_STEPS_MIN[0] * 60_000;
+      card.nextReview = t + LEARNING_STEPS_MIN[0] * 180_000;
       return card;
     }
 
     // NEW + GOOD → learning mode, step 1
     card.status = "learning";
     card.learningStep = 1;
-    card.nextReview = t + DAY_MS;
+    card.nextReview = t + LEARNING_STEPS_MIN[1] * 60000;
     return card;
   }
 
@@ -89,8 +89,25 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
       card.nextReview = t + steps[0] * 60_000;
       return card;
     }
+    if (grade === "hard") {
+      const cur = card.learningStep;
 
+      // Again delay is always steps[0]
+      const againMin = steps[0];
+
+      // "Good delay" = delay of the *next* step, but if you're on last step,
+      // good would graduate so we use the current step's delay as an upper-ish bound.
+      const goodMin =
+        cur + 1 < steps.length ? steps[cur + 1] : steps[cur];
+
+      const hardMin = Math.round((againMin + goodMin) / 2);
+
+      // Repeat current step (do NOT advance)
+      card.nextReview = t + hardMin * 60_000;
+      return card;
+    }
     const nextStep = card.learningStep + 1;
+
 
     if (nextStep < steps.length) {
       // More learning steps left
@@ -105,7 +122,12 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
     card.reps += 1;
 
     // If this was genuinely new (no interval), start with 1 day
-    card.interval = GRADUATING_INTERVAL_DAYS;
+    if (rawCard.status === "new" || card.interval === 0) {
+      card.interval = GRADUATING_INTERVAL_DAYS;
+    } else {
+      card.interval = Math.max(1, card.interval); // keep whatever lapse punishment set
+    }
+
 
     // Final grade after graduation
     if (grade === "good") {
@@ -114,9 +136,6 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
     } else if (grade === "easy") {
       card.interval = Math.max(1, Math.round(card.interval * EASY_BONUS));
       card.ease = Math.max(MIN_EASE, card.ease + 0.15);
-    } else if (grade === "hard") {
-      card.interval = Math.max(1, Math.round(card.interval * 1.2));
-      card.ease = Math.max(MIN_EASE, card.ease - 0.15);
     }
 
     card.nextReview = t + card.interval * DAY_MS;

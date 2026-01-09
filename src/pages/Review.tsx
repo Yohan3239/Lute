@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Session } from "../lib/session";
-import { getDueCards } from "../lib/queue";
+import { getDueCards, getNewCount } from "../lib/queue";
 import { Card, Deck, VariantCard, Classic } from "../lib/types";
 import { listDecks } from "../lib/decks";
 import { generateMCQ, generateCloze, generateTrueFalse } from "../lib/llm";
@@ -10,6 +10,7 @@ import { motion, AnimatePresence, useAnimation, useSpring, useMotionValue } from
 import { DEFAULT_SETTINGS } from "../lib/constants";
 import { GameState, initialGameState, calculateBasePoints, calculateTimePoints, calculateMultPoints, savePointstoScore, calculateMultiplierStreak, calculateTimeMult, calculateReturnPoints } from "../lib/gameLogic";
 import { Grade } from "../lib/srs";
+import { useFitText } from "../lib/useFitText";
 
 const REQUEUE_WINDOW_MS = 15 * 60 * 1000; // bring back cards due within ~15 minutes
 
@@ -19,6 +20,7 @@ type ProcPopupProps = {
   type: "points" | "mult" | "return";
   createdAt: number;
   offsetX?: number;
+  scaleFactor?: number;
 }
 export function getSaveExists(deck: Deck) {
   const sessionInfos = getSessionInfo();
@@ -52,10 +54,10 @@ return Object.keys(localStorage).filter((i) => i.startsWith("reviewSession-")).m
 function ProcPopups({ popups }: { popups: ProcPopupProps[] }) {
   const bgFor = (type: ProcPopupProps["type"]) =>
     type === "mult"
-      ? "bg-indigo-500/15 border-indigo-300/30 text-indigo-100"
+      ? "bg-gradient-to-br from-indigo-500/50 via-sky-500/30 to-emerald-300/20 border-indigo-200/50 text-indigo-50 shadow-[0_0_18px_rgba(129,140,248,0.5),0_0_40px_rgba(56,189,248,0.3)]"
       : type === "points"
-        ? "bg-rose-500/15 border-rose-300/30 text-rose-100"
-        : "bg-rose-500/30 border-rose-300/60 text-rose-100"
+        ? "bg-gradient-to-br from-rose-500/50 via-fuchsia-500/30 to-amber-300/25 border-rose-200/50 text-rose-50 shadow-[0_0_18px_rgba(244,114,182,0.5),0_0_40px_rgba(251,191,36,0.25)]"
+        : "bg-gradient-to-br from-amber-400/55 via-yellow-300/35 to-lime-200/20 border-amber-200/60 text-amber-50 shadow-[0_0_18px_rgba(251,191,36,0.55),0_0_40px_rgba(253,224,71,0.35)]"
       
 
   return (
@@ -64,14 +66,14 @@ function ProcPopups({ popups }: { popups: ProcPopupProps[] }) {
         {popups.map((p) => (
           <motion.div
             key={p.id}
-            initial={{ opacity: 0, y: -28, scale: 0.9 }}
-            animate={{ opacity: 1, y: -58, scale: 1.08 }}
-            exit={{ opacity: 0, y: -60, scale: 0.92 }}
+            initial={{ opacity: 0, y: -28, scale: 0.9 * (p.scaleFactor ?? 1) }}
+            animate={{ opacity: 1, y: -58, scale: 1.08 * (p.scaleFactor ?? 1) }}
+            exit={{ opacity: 0, y: -60, scale: 0.92 * (p.scaleFactor ?? 1) }}
             transition={{ duration: 0.22}}
             className="absolute top-0 -translate-x-1/2 "
             style={{ x: p.offsetX ?? 0 }}
           >
-            <div className={`px-3 py-1 rounded-md border text-sm shadow-md shadow-black/20 ${bgFor(p.type)}`}>
+            <div className={`relative px-4 py-2 rounded-xl border text-sm font-semibold tracking-wide shadow-[0_14px_38px_rgba(0,0,0,0.5)] backdrop-blur-sm ring-1 ring-white/15 ${bgFor(p.type)}`}>
               {p.text}
             </div>
           </motion.div>
@@ -91,6 +93,8 @@ type AnimatedNumberProps = {
 function AnimatedNumber({ value, decimals = 0, className, pulseKey, floatDigits = false }: AnimatedNumberProps) {
   const motionValue = useMotionValue(value);
   const springValue = useSpring(motionValue, { stiffness: 400, damping: 40, mass: 1 });
+  const scaleControls = useAnimation();
+  const prevValueRef = useRef(value);
 
   const [display, setDisplay] = useState(() =>
     decimals > 0 ? value.toFixed(decimals) : Math.round(value).toString()
@@ -107,13 +111,21 @@ function AnimatedNumber({ value, decimals = 0, className, pulseKey, floatDigits 
     return () => unsub();
   }, [springValue, decimals]);
 
+  useEffect(() => {
+    const delta = Math.abs(value - prevValueRef.current);
+    prevValueRef.current = value;
+    const magnitude = Math.min(0.8, 0.12 + Math.log10(delta + 1) * 0.4);
+    scaleControls.start({
+      scale: [1, 1 + magnitude, 1],
+      transition: { duration: 0.22 },
+    });
+  }, [value, pulseKey, scaleControls]);
+
   return (
     <motion.span
-      key={`${pulseKey ?? ""}`}          // <-- THIS is what forces the pop to restart
       className={className}
       initial={{ scale: 1 }}
-      animate={{ scale: [1, 1.22, 1]}}
-      transition={{ duration: 0.22 }} // no bounce
+      animate={scaleControls}
       style={{ display: "inline-block" }}              // <-- important for scale to visually show
     >
       {floatDigits ? (
@@ -146,6 +158,8 @@ function AnimatedNumber({ value, decimals = 0, className, pulseKey, floatDigits 
   );
 }
 export default function Review() {
+
+
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "classic";
   const isAIReview = mode === "ai";
@@ -155,13 +169,16 @@ export default function Review() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [finished, setFinished] = useState(false);
-  const redirectedRef = useRef(false);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [cards, setCards] = useState<Card[]>([]); 
   const [answer, setAnswer] = useState("");
   const [stopwatchTimer, setStopwatchTimer] = useState(0)
   // Prevents recreating the session during grading
   const sessionRef = useRef<Session | null>(null);
+  const promptContainerRef = useRef<HTMLDivElement | null>(null);
+  const promptTextRef = useRef<HTMLDivElement | null>(null);
+  const answerContainerRef = useRef<HTMLDivElement | null>(null);
+  const answerTextRef = useRef<HTMLDivElement | null>(null);
   const [game, setGame] = useState<GameState>(() => initialGameState());
   
   const shakeControls = useAnimation();
@@ -172,13 +189,35 @@ export default function Review() {
 
   const [manualgradingdisabled, setManualGradingDisabled] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
-
   
+  const today = new Date().toISOString().slice(0, 10);
   const reviewMode = Boolean(deckId);
-  function spawnPopup(text: string, type: "points" | "mult" | "return", ttl = 600) {
+  const promptText = session?.current?.variant?.prompt ?? "";
+  const answerText =
+    session?.current?.variant?.type === "classic"
+      ? session?.current?.variant?.answer ?? ""
+      : "";
+
+  useFitText(promptTextRef, promptContainerRef, { minSize: 20, maxSize: 56 }, [
+    reviewMode,
+    session?.current?.id,
+    promptText,
+  ]);
+  useFitText(answerTextRef, answerContainerRef, { minSize: 12, maxSize: 20 }, [
+    reviewMode,
+    showAnswer,
+    session?.current?.id,
+    answerText,
+  ]);
+  function spawnPopup(
+    text: string,
+    type: "points" | "mult" | "return",
+    scaleFactor = 1,
+    ttl = 600
+  ) {
     const id = crypto.randomUUID();
     const offsetX = Math.floor(Math.random() * 30 - 15); // small drift so they don't stack
-    const popup: ProcPopupProps = { id, text, type, createdAt: Date.now(), offsetX };
+    const popup: ProcPopupProps = { id, text, type, createdAt: Date.now(), offsetX, scaleFactor };
     setPopups((prev) => [...prev, popup]);
 
     window.setTimeout(() => {
@@ -260,13 +299,26 @@ export default function Review() {
     }
   };
   // Load settings
-  const prev = loadSettings();
-  const defaultMode = prev?.defaultMode || DEFAULT_SETTINGS.defaultMode;
-  const typingTolerance = prev?.typingTolerance || DEFAULT_SETTINGS.typingTolerance;
-  const enableMultipleChoice = prev?.enableMultipleChoice ?? DEFAULT_SETTINGS.enableMultipleChoice;
-  const enableCloze = prev?.enableCloze ?? DEFAULT_SETTINGS.enableCloze;
-  const enableTrueFalse = prev?.enableTrueFalse ?? DEFAULT_SETTINGS.enableTrueFalse;
-  const defaultRunMaxLength = prev?.defaultRunMaxLength ?? DEFAULT_SETTINGS.defaultRunMaxLength;
+  const generalSettings = loadSettings();
+
+  const loadDeckSettings = () => {
+    const raw = localStorage.getItem(`deck-${deckId}-settings`);
+    if (!raw) return generalSettings;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed;
+    } catch {
+      return generalSettings;
+    }
+  };
+
+  const prev = loadDeckSettings();
+  const defaultMode = prev?.defaultMode ?? generalSettings.defaultMode ?? DEFAULT_SETTINGS.defaultMode;
+  const typingTolerance = prev?.typingTolerance ?? generalSettings.typingTolerance ?? DEFAULT_SETTINGS.typingTolerance;
+  const enableMultipleChoice = prev?.enableMultipleChoice ?? generalSettings.enableMultipleChoice ?? DEFAULT_SETTINGS.enableMultipleChoice;
+  const enableCloze = prev?.enableCloze ?? generalSettings.enableCloze ?? DEFAULT_SETTINGS.enableCloze;
+  const enableTrueFalse = prev?.enableTrueFalse ?? generalSettings.enableTrueFalse ?? DEFAULT_SETTINGS.enableTrueFalse;
+  const defaultRunMaxLength = prev?.defaultRunMaxLength ?? generalSettings.defaultRunMaxLength ?? DEFAULT_SETTINGS.defaultRunMaxLength;
   const [runMaxLength, setRunMaxLength] = useState(() => defaultRunMaxLength);
   const REQUEUE_INSERT_OFFSET = runMaxLength === 30 ? 12 : 6; // put requeued cards a few spots ahead
 
@@ -327,14 +379,13 @@ export default function Review() {
       aiRaw ? "ai" :
       null;
     if (lockedMode && mode !== lockedMode) {
-      redirectedRef.current = true;              // prevent loop
       setSearchParams({ mode: lockedMode }, { replace: true });
       return;
     }
     (async () => {
       const all = await window.api.readCards();
       const filtered = all.filter((c) => c.deckId === deckId);
-      const due = getDueCards(filtered).slice(0, runMaxLength);
+      const due = getDueCards(filtered, deckId).slice(0, runMaxLength);
       const persisted = loadPersistedSession();
 
       if (persisted) {
@@ -393,7 +444,7 @@ export default function Review() {
       setFinished(false);
     })();
   // Re-run when deck or mode changes so classic vs AI build their own sessions
-  }, [deckId, mode, setSearchParams]);
+  }, [deckId, mode, setSearchParams, runMaxLength, isAIReview, enableCloze, enableMultipleChoice, enableTrueFalse, typingTolerance]);
 
 
   useEffect(() => {
@@ -438,6 +489,10 @@ export default function Review() {
   if (!reviewMode) {
     const countDue = (id: string) =>
       cards.filter((c) => c.deckId === id && c.nextReview <= Date.now()).length;
+    const countNew = (id: string) => {
+      const availableNew = cards.filter((c) => c.deckId === id && c.status === "new").length;
+      return getNewCount(id, availableNew);
+    };
     
     const sessionInfos = getSessionInfo().filter(
       (s): s is NonNullable<ReturnType<typeof getSessionInfo>[number]> => Boolean(s)
@@ -468,7 +523,7 @@ export default function Review() {
         </div>
 
         {defaultMode === "none" &&
-          <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113]">
+          <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113] shadow-[0_0_30px_-12px_rgba(99,102,241,0.25)]">
             {decks.map((deck) => {
               const classicSaveExists = sessionInfos.some((s) => s.mode === "classic" && s.deckId === deck.id);
               const aiSaveExists = sessionInfos.some((s) => s.mode === "ai" && s.deckId === deck.id);
@@ -487,7 +542,7 @@ export default function Review() {
 
                   })()}
 
-                  <div className="opacity-60 text-sm text-gray-400">{countDue(deck.id)} due</div>
+                  <div className="opacity-60 text-sm text-gray-400">{countDue(deck.id)} due • {countNew(deck.id)} new</div>
                   <div className="space-x-2">
 
                   </div>
@@ -524,7 +579,7 @@ export default function Review() {
           </div>
         }
         {defaultMode !== "none" &&
-          <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113]">
+          <div className="flex flex-col divide-y divide-white/5 border border-white/5 rounded-lg bg-[#111113] shadow-[0_0_30px_-12px_rgba(99,102,241,0.25)]">
             {decks.map((deck) => {
               const currentMode = defaultMode.toLowerCase();
               const otherMode = currentMode === "ai" ? "classic" : "ai";
@@ -541,23 +596,31 @@ export default function Review() {
                     }
                   }}
                 >
-                  <div className="font-medium text-lg flex flex-col gap-2">
+                  <div className="font-medium text-lg flex flex-row gap-6">
                     <span>{deck.name}</span>
                     {(() => {
                       const active = sessionInfos.find((s) => s.deckId === deck.id && currentMode === s.mode);
-                      return active ? (
-                        <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-[11px] uppercase tracking-wide">
-                          <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
-                          <span className="font-semibold">{active.mode} {active.isFull ? "Full" : "Sprint"} session</span>
-                          <span className="text-emerald-200/80"> {active.remaining} left</span>
-                        </span>
-                      ) : null;
+                      const dueNew = `${countDue(deck.id)} due • ${countNew(deck.id)} new`;
+                      return (
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
+                          {active ? (
+                            <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-100 border border-emerald-300/30 text-[11px] uppercase tracking-wide">
+                              <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+                              <span className="font-semibold">{active.mode} {active.isFull ? "Full" : "Sprint"} session</span>
+                              <span className="text-emerald-200/80"> {active.remaining} left</span>
+                            </span>
+                          ) : null}
+                          <span className="opacity-70">{dueNew}</span>
+                        </div>
+                      );
                     })()}
                   </div>
                   
-                  <div className="opacity-60 text-sm text-gray-400">
-                    {otherModeActive ? "Other mode in progress" : `${countDue(deck.id)} due`}
-                  </div>
+                  {otherModeActive ? (
+                    <div className="opacity-60 text-sm text-gray-400">
+                      Other mode in progress
+                    </div>
+                  ) : null}
                 </Link>
               );
             })}
@@ -601,14 +664,13 @@ export default function Review() {
   if (!session) return <div className="text-gray-100 p-6">Loading...</div>;
 
   const card = session.current;
+
   if (!card) {
-    streakBump();
-    setFinished(true);
     return <div className="text-gray-100 p-6">Finishing...</div>;
   }
   type Step = {name:string, fn:Function}
   function makeSteps(grade: Grade, timeTaken: number, isReturned: boolean):Step[] {
-    isReturned = isReturned ?? false;
+    
     return [
     {name: "base", fn:(prev: GameState) => calculateBasePoints(prev, grade)},
 
@@ -633,7 +695,10 @@ export default function Review() {
   const handleGrade = async (grade: "easy" | "good" | "hard" | "wrong", timeTaken: number) => {
     const s = sessionRef.current;
     if (!s) return;
-    setShowAnswer(true);
+
+    if (card.status === "new") {
+      localStorage.setItem(`newCount-${deckId}-${today}`, String(Number(localStorage.getItem(`newCount-${deckId}-${today}`) ?? 0) + 1));
+    }
     const updated = s.grade(grade, card.runReturnedCount);
     if (!updated) return;
     // delay the advance so the user can see feedback, but move using the latest game state
@@ -643,10 +708,13 @@ export default function Review() {
     const saved = all.map((c) => (c.id === updated.id ? {...updated, variant: undefined,  runReturnedCount: undefined} : c));
     await window.api.saveCards(saved);
 
-    const steps = makeSteps(grade, timeTaken, isReturned ?? 0);
+    const isReturn = (card.runReturnedCount ?? 0) > 0;
+    const steps = makeSteps(grade, timeTaken, isReturn);
     let state = game ?? initialGameState();
     let incDelay = 800;
     let shrinkFactor = 0.75;
+    let scaleFactor = 1;
+    let scaleInc = 0.1;
     for (const step of steps) {
       const before = state;
       state = step.fn(state);
@@ -663,18 +731,19 @@ export default function Review() {
         setPointsPulse((p) => p+1);
       }
       
-      if (step.name === "base") spawnPopup(`+${state.points - before.points} Answer`, "points");
-      if (step.name === "timePoints") spawnPopup(`+${state.points - before.points} Speed`, "points");
-      if (step.name === "timeMult") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Speed`, "mult");
-      if (step.name === "streak") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Streak`, "mult");
-      if (step.name === "mult") spawnPopup(`x${state.multiplier.toFixed(2)} Mult`, "points");
-      if (step.name === "returnPoints") spawnPopup(`+${state.points - before.points} RETURN!!`, "return");
+      if (step.name === "base") spawnPopup(`+${state.points - before.points} Answer`, "points", scaleFactor);
+      if (step.name === "timePoints") spawnPopup(`+${state.points - before.points} Speed`, "points", scaleFactor);
+      if (step.name === "timeMult") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Speed`, "mult", scaleFactor);
+      if (step.name === "streak") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Streak`, "mult", scaleFactor);
+      if (step.name === "mult") spawnPopup(`x${state.multiplier.toFixed(2)} Mult`, "points", scaleFactor);
+      if (step.name === "returnPoints") spawnPopup(`+${state.points - before.points} RETURN`, "return", scaleFactor);
 
       setGame(state);
       await new Promise(r => setTimeout(r, incDelay)); // optional delay
       incDelay*=shrinkFactor;
+      scaleFactor+=scaleInc;
     }
-
+    
     const requeueThreshold = Date.now() + REQUEUE_WINDOW_MS;
     const REQUEUE_INSERT_FLOOR = 4;
     if (updated.nextReview <= requeueThreshold) {
@@ -689,10 +758,15 @@ export default function Review() {
 
     }
 
-    if (s.isFinished()) {
-      streakBump();
-      if (SESSION_KEY) localStorage.removeItem(SESSION_KEY);
-      setFinished(true);
+    if (s.noNextCard()) {
+      const finishDelayMs = 1200;
+      window.setTimeout(() => {
+        streakBump();
+        if (SESSION_KEY) localStorage.removeItem(SESSION_KEY);
+        setFinished(true);
+        sessionRef.current = null;
+        setSession(null);
+      }, finishDelayMs);
     } else {
       setGame(state);
       s.next();
@@ -770,89 +844,125 @@ export default function Review() {
   const isReturned = (card.runReturnedCount ?? 0) > 0;
 
   return (
+
+    
+
     <motion.div
-      className="text-gray-100 p-6 max-w-6xl mx-auto"
+      className="text-gray-100 p-4 max-w-7xl mx-auto"
       animate={shakeControls}
       initial={{ x: 0 }}
-    >
-      <div className="flex flex-row gap-3 items-center justify-between mb-4">
-        <h1 className="text-2xl mb-4">Reviewing...</h1>
-        <button
-          className="px-3 py-2 rounded-md bg-rose-500/15 text-rose-100 border border-rose-300/40 hover:bg-rose-500/25 transition"
-          onClick={endSessionEarly}
-        >
-          End session
-        </button>
-      </div>
-      
-      
-      <div className="flex flex-row gap-6 items-start">
-      <div className="w-2/3 grid gap-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={card.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={
-              gradeFlash === "wrong"
-                ? { opacity: 1, y: 0, scale: [1, 1.06, 0.9, 1.03, 1], rotate: [0, -3, 3, -2, 2, 0] }
-                : { opacity: 1, y: 0 }
-            }
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className={`relative overflow-hidden p-4 rounded bg-[#111113] border border-white/10 ${
-              gradeFlash === "easy"
-                ? "ring-2 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
-                : gradeFlash === "good"
-                ? "ring-2 ring-indigo-400/40 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
-                : gradeFlash === "hard"
-                ? "ring-2 ring-amber-300/70 shadow-[0_0_30px_-10px_rgba(252,211,77,0.6)]"
-                : gradeFlash === "wrong"
-                ? "ring-2 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)]"
-                : ""
-            }`}
+    > 
+      <div className="flex flex-row justify-between mb-4">
+        <h1 className="text-3xl">Reviewing...</h1>
+        <div className="flex gap-4">
+          <div className="px-3 py-2 rounded bg-[#0d0f14] border border-white/10 text-gray-300 items-center">
+            {`${Math.floor(stopwatchTimer / 60)}:${(stopwatchTimer % 60).toString().padStart(2, '0')}`}
+          </div>
+          <button
+            className="px-3 py-2 rounded-md bg-rose-500/15 text-rose-100 border border-rose-300/40 hover:bg-rose-500/25 transition"
+            onClick={endSessionEarly}
           >
-            {isReturned && (
-              <>
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-amber-500/10 via-amber-500/5 to-transparent animate-pulse" />
-                <motion.div
-                  className="pointer-events-none absolute -left-4 -top-4 h-16 w-16 rounded-full bg-amber-500/25 blur-2xl"
-                  animate={{ scale: [1, 1.1, 0.95, 1], opacity: [0.65, 0.9, 0.7, 0.65] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <motion.div
-                  className="pointer-events-none absolute -right-4 -bottom-6 h-16 w-16 rounded-full bg-orange-400/25 blur-2xl"
-                  animate={{ scale: [0.9, 1.05, 0.9], opacity: [0.5, 0.85, 0.5] }}
-                  transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-                />
-                <div className="pointer-events-none absolute inset-0 border border-amber-400/30 rounded animate-pulse" />
-              </>
-            )}
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm opacity-70 text-gray-300">Question</span>
-              <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide">
-                {v ? (v.type === "mcq" ? "MCQ" : v.type === "cloze" ? "Cloze" : v.type === "classic" ? "Flashcard" : "True/False") : "Flashcard"}
-              </span>
-              <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide text-gray-300">
-                {card.status}
-              </span>
-              {isReturned && 
-                <span className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 uppercase tracking-wide text-rose-300">
-                  Returned
-                </span>
-              }
-              <motion.span
-                className="px-2 py-0.5 text-xs rounded bg-[#16161a] border border-white/10 inline-block"
-              >
-                {`Time: ${Math.floor(stopwatchTimer / 60)}:${(stopwatchTimer % 60).toString().padStart(2, '0')}`}
-              </motion.span>
-            </div>
+            End session
+          </button>
+        </div>
+
+      </div>
+
+      <div className="flex flex-row gap-6">
+      <div className="flex-[2] grid gap-4">
+<AnimatePresence mode="wait">
+  <motion.div
+    key={card.id}
+    initial={{ opacity: 0, y: -30 }}
+    onClick={() => {
+      if (isAIReview) return;
+      if (v?.type !== "classic") return;
+      if (!showAnswer) setShowAnswer(true);
+    }}
+    animate={
+      gradeFlash === "wrong"
+        ? { opacity: 1, y: 0, scale: [1, 1.06, 0.9, 1.03, 1], rotate: [0, -3, 3, -2, 2, 0] }
+        : { opacity: 1, y: 0 }
+    }
+    exit={{ opacity: 0, y: 30 }}
+    transition={{ duration: 0.13, ease: "easeOut" }}
+    className={`relative overflow-hidden rounded-2xl bg-[#0b0b0f] border border-white/10 aspect-[1.7] w-full flex flex-col overflow-hidden min-h-0
+      shadow-[0_18px_55px_rgba(0,0,0,0.45)]
+      before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none
+      before:shadow-[inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(0,0,0,0.55)]
+      ${
+        gradeFlash === "easy"
+          ? "ring-2 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+          : gradeFlash === "good"
+          ? "ring-2 ring-indigo-400/40 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+          : gradeFlash === "hard"
+          ? "ring-2 ring-amber-300/70 shadow-[0_0_30px_-10px_rgba(252,211,77,0.6)]"
+          : gradeFlash === "wrong"
+          ? "ring-2 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)]"
+          : ""
+      } ${!showAnswer && v?.type === "classic" ? "cursor-pointer" : ""}`}
+  >
+    {/* Outer padding belongs to the "margin" of the card */}
+    <div className="relative p-12 min-h-0 flex-1">
+      {isReturned && (
+        <motion.div
+          className="pointer-events-none absolute inset-5 rounded-[24px] bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,0.22),transparent_48%),radial-gradient(circle_at_82%_22%,rgba(251,191,36,0.18),transparent_44%),radial-gradient(circle_at_50%_82%,rgba(245,158,11,0.24),transparent_54%)] blur-[30px] shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_22px_55px_-30px_rgba(245,158,11,0.55),0_0_40px_16px_rgba(251,191,36,0.26)]"
+          initial={{ opacity: 0.88, scale: 0.992 }}
+          animate={{
+            opacity: [0.72, 1, 0.75, 0.96],
+            scale: [0.985, 1.032, 1.005, 0.99],
+            rotate: [0, 0.25, -0.18, 0],
+          }}
+          transition={{ duration: 2.1, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }}
+        />
+      )}
+
+      {/* Header row pinned */}
+      <div className="absolute top-3.5 left-6 flex items-center gap-2">
+        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-md bg-zinc-900/70 ring-1 ring-white/10 uppercase tracking-wide text-gray-300">
+          {v ? (v.type === "mcq" ? "MCQ" : v.type === "cloze" ? "Cloze" : v.type === "classic" ? "Flashcard" : "True/False") : "Flashcard"}
+        </span>
+
+        <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-md bg-zinc-900/50 ring-1 ring-white/10 uppercase tracking-wide text-gray-300">
+          {card.status}
+        </span>
+
+        {isReturned && (
+          <span className="inline-flex items-center px-2 py-0.5 text-xs rounded-md bg-amber-500/10 ring-1 ring-amber-300/70 uppercase tracking-wide text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.22)]">
+            Returned
+          </span>
+        )}
+      </div>
+
+            {/* Inner face */}
+      <div className="relative z-10 h-full min-h-0 rounded-xl bg-[#0f1014] ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="h-full p-4 flex items-start min-h-0">
+          <div
+            ref={promptContainerRef}
+            className="flex items-center justify-center w-full h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+          >
             <div
-              className={`text-gray-50 ${v?.type === "classic" ? "text-2xl md:text-3xl leading-snug" : "text-lg"}`}
+              ref={promptTextRef}
+              className=" w-full text-gray-50 text-center break-words whitespace-pre-wrap [overflow-wrap:anywhere] leading-snug"
             >
-              {card.variant?.prompt}
+              {card.variant?.prompt ?? ""}
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+
+      
+    </div>
+
+    {/* Optional subtle grain */}
+    <div className="absolute inset-0 pointer-events-none opacity-15
+      [background-image:repeating-linear-gradient(45deg,rgba(255,255,255,0.06)_0px,rgba(255,255,255,0.06)_2px,transparent_2px,transparent_6px)]
+    " />
+  </motion.div>
+</AnimatePresence>
+
+        
 
       {v?.type === "tf" && (
         <motion.div
@@ -926,16 +1036,39 @@ export default function Review() {
           </div>
         )}
         {v?.type === "classic" && (
+
+
             <div>
+              <div>
+                {!showAnswer && (
+                  <div className="text-sm opacity-60 mb-1 text-gray-400 flex flex-col">
+                    Press Space or click the card to reveal, 1-4 to grade.
+                  </div>
+                )
+
+                }
+              </div>
               {showAnswer && (
               <motion.div
-                className="mt-3 p-4 rounded bg-[#16161a] border border-white/10"
+                className="mt-3 w-full p-6 rounded-lg bg-[#16161a] border border-white/10 flex flex-col"
                 initial="hidden"
                 animate="show"
                 variants={listVariants}
               >
-                <span className="text-sm opacity-60 mb-1 text-gray-400">Answer</span>
-                <div className="mt-2 text-gray-100 text-2xl md:text-3xl leading-snug">{v.answer}</div>
+                <div
+                  ref={answerContainerRef}
+                  className="mt-2 min-w-0 max-h-[24vh] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+                >
+                  <div
+                    ref={answerTextRef}
+                    className="w-full text-gray-100 leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                  >
+                    {v.answer}
+                  </div>
+
+                  
+
+                </div>
                 <div className="mt-4 grid grid-cols-4 gap-3">
                   {["wrong", "hard", "good", "easy"].map((grade) => (
                     <motion.button
@@ -948,7 +1081,9 @@ export default function Review() {
                     >
                       <span className="relative z-10">{grade}</span>
                     </motion.button>
+                    
                   ))}
+                  
                 </div>
               </motion.div>
 
@@ -959,7 +1094,7 @@ export default function Review() {
         )}
       </div>
       <div 
-      className="inline-flex flex-col w-1/3 p-5 h-full gap-4 rounded-2xl bg-gradient-to-b from-[#111113] via-[#0f1115] to-[#0c0d12] border border-white/10 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.7)]">
+      className="inline-flex flex-col flex-[1] p-5 h-full gap-4 rounded-2xl bg-gradient-to-b from-[#111113] via-[#0f1115] to-[#0c0d12] border border-white/10 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.7)] transform origin-top">
         <div className="flex flex-col gap-6 w-full">
           <div className="flex items-center gap-3">
             <motion.div

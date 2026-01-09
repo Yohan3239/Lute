@@ -41,6 +41,9 @@ export class Session {
   isFinished() {
     return this.index >= this.queue.length;
   }
+  noNextCard() {
+    return this.index + 1 >= this.queue.length;
+  }
   get position() {
     return this.index;
   }

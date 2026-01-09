@@ -186,7 +186,7 @@ export default function Browse() {
                     className={`border-b border-white/10 hover:bg-white/5 ${selected.includes(card.id) ? "bg-white/10" : ""}`}
                 >
 
-                    <td className="p-2">
+                    <td className="p-2 max-w-[34rem] truncate">
                     <Link
                         to={`/cards/${card.id}`}
                         className="hover:underline"
@@ -195,19 +195,18 @@ export default function Browse() {
                     </Link>
                     </td>
 
-                    <td className="p-2 opacity-80">
+                    <td className="p-2 opacity-80 max-w-[20rem] truncate">
                     {card.answer}
                     </td>
 
-                    <td className="p-2">
+                    <td className="p-2 max-w-[32rem] truncate">
                     {deckName}
                     </td>
 
-                    <td className="p-2 opacity-75">
+                    <td className="p-2 opacity-75 max-w-[10rem] truncate">
                     {new Date(card.nextReview).toLocaleDateString()}
                     </td>
 
-                    {/* ⭐ EDIT BUTTON */}
                     <td className="p-2">
                     <Link
                         to={`/cards/${card.id}`}

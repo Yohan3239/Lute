@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import { Card, Deck } from "../lib/types";
 import { createNewCard } from "../lib/defaults";
-import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { DEFAULT_DECK_ID } from "../lib/constants";
 import { listDecks } from "../lib/decks";
 
-export default function AddCard() {
+interface DeckIdProp {
+  deckId?: string;
+}
+export default function AddCard({ deckId: deckIdProp }: DeckIdProp) {
     const [question, setQuestion] = useState("");
     const [answer, setAnswer] = useState("");
     const [status, setStatus] = useState<null | "saved" | "error">(null);
+    const location = useLocation();
+    const deckId = deckIdProp ?? location.state?.deckId ?? null;
 
     // ⭐ get ?deckId=xxxx from URL
-    const location = useLocation();
-    const deckId = location.state?.deckId || null;
     const [decks, setDecks] = useState<Deck[]>([]);
     const [selectedDeckId, setSelectedDeckId] = useState(
         deckId ?? DEFAULT_DECK_ID
@@ -28,6 +30,10 @@ export default function AddCard() {
         if (!deckId) {
         console.warn("No deckId provided!");
         }
+    }, [deckId]);
+
+    useEffect(() => {
+        setSelectedDeckId(deckId ?? DEFAULT_DECK_ID);
     }, [deckId]);
 
     const handleSave = async () => {

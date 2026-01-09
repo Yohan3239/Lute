@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DEFAULT_DECK_ID } from '../lib/constants';
 import { type Card, type CardStatus } from '../lib/types';
-export default function Import() {
+
+interface DeckIdProp {
+  deckId?: string;
+}
+export default function Import({ deckId: deckIdProp }: DeckIdProp) {
     const { state } = useLocation();
+    const deckId = deckIdProp ?? state?.deckId ?? null;
     const [divider, setDivider] = useState(",");
     const [textToParse, setTextToParse] = useState("");
-    const deckId = state?.deckId || null;
     useEffect(() => {
         if (!deckId) {
         console.warn("No deckId provided!");

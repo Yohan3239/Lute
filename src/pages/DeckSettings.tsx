@@ -1,48 +1,70 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { DEFAULT_SETTINGS, type SettingsState } from "../lib/constants";
+const loadSettings = () => {
+      const raw = localStorage.getItem("settings");
+      if (!raw) return DEFAULT_SETTINGS;
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed;
+      } catch {
+        return DEFAULT_SETTINGS;
+      }
+};
+interface DeckIdProp {
+  deckId?: string;
+}
 
-export default function Settings() {
+export default function DeckSettings({ deckId: deckIdProp }: DeckIdProp) {
+  const { deckId: paramDeckId } = useParams();
+  const deckId = deckIdProp ?? paramDeckId;
+  if (!deckId) {
+    return <h1 className="p-6 text-xl text-gray-100">No deck selected.</h1>;
+  }
+
   const ensureAtLeastOneQuestionType = (next: SettingsState, prev: SettingsState) => {
     const enabledCount = [next.enableMultipleChoice, next.enableCloze, next.enableTrueFalse].filter(Boolean).length;
     return enabledCount === 0 ? prev : next;
   };
-
-  const [settings, setSettings] = useState<SettingsState>(() => {
-    const raw = localStorage.getItem("settings");
-    if (!raw) return DEFAULT_SETTINGS;
+  const generalSettings = loadSettings();
+  const loadDeckSettings = () => {
+    const raw = localStorage.getItem(`deck-${deckId}-settings`);
+    if (!raw) return generalSettings;
     try {
       const parsed = JSON.parse(raw);
       return {
-        dailyLimit: Number(parsed.dailyLimit) || DEFAULT_SETTINGS.dailyLimit,
-        defaultMode: parsed.defaultMode || DEFAULT_SETTINGS.defaultMode,
-        typingTolerance: Number(parsed.typingTolerance) || DEFAULT_SETTINGS.typingTolerance,
+        dailyLimit: Number(parsed.dailyLimit) || generalSettings.dailyLimit,
+        defaultMode: generalSettings.defaultMode,
+        typingTolerance: Number(parsed.typingTolerance) || generalSettings.typingTolerance,
         enableMultipleChoice:
           parsed.enableMultipleChoice !== undefined
             ? Boolean(parsed.enableMultipleChoice)
-            : DEFAULT_SETTINGS.enableMultipleChoice,
+            : generalSettings.enableMultipleChoice,
         enableCloze:
-          parsed.enableCloze !== undefined ? Boolean(parsed.enableCloze) : DEFAULT_SETTINGS.enableCloze,
+          parsed.enableCloze !== undefined ? Boolean(parsed.enableCloze) : generalSettings.enableCloze,
         enableTrueFalse:
-          parsed.enableTrueFalse !== undefined ? Boolean(parsed.enableTrueFalse) : DEFAULT_SETTINGS.enableTrueFalse,
-        defaultRunMaxLength:
-          Number(parsed.defaultRunMaxLength) || DEFAULT_SETTINGS.defaultRunMaxLength,
+          parsed.enableTrueFalse !== undefined ? Boolean(parsed.enableTrueFalse) : generalSettings.enableTrueFalse,
+        defaultRunMaxLength: generalSettings.defaultRunMaxLength,
       };
     } catch {
-      return DEFAULT_SETTINGS;
+      return generalSettings;
     }
-  });
-
+  }
+  const [settings, setSettings] = useState<SettingsState>(() => loadDeckSettings());
   useEffect(() => {
-    localStorage.setItem("settings", JSON.stringify(settings));
-  }, [settings]);
+    setSettings(loadDeckSettings());
+  }, [deckId])
+  useEffect(() => {
+    localStorage.setItem(`deck-${deckId}-settings`, JSON.stringify(settings));
+  }, [settings, deckId]);
 
   return (
     <div className="p-6 text-gray-100 space-y-6">
           <div className="text-xs text-gray-500">
-            Note: This setting will apply to all decks, unless overridden in Deck Settings.
+            Note: This will override the general settings.
           </div>
-
-      <div className="rounded-2xl border border-white/10 bg-[#111113] p-6 shadow-[0_0_30px_-12px_rgba(99,102,241,0.25)] space-y-4">
+      <div>
+                
         <label className="block text-sm font-medium text-gray-200">Daily new card limit</label>
         <div className="flex items-center gap-3">
           <input
@@ -59,23 +81,7 @@ export default function Settings() {
             className="w-28 rounded-lg bg-[#0b0b0d] border border-white/10 px-3 py-2 text-gray-100 focus:border-indigo-400 focus:outline-none"
           />
         </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-200 mb-2">Default review mode</label>
-          <select
-            value={settings.defaultMode}
-            onChange={(e) =>
-              setSettings((prev) => ({
-                ...prev,
-                defaultMode: e.target.value as SettingsState["defaultMode"],
-              }))
-            }
-            className="w-full rounded-lg bg-[#0b0b0d] border border-white/10 px-3 py-2 text-gray-100 focus:border-indigo-400 focus:outline-none"
-          >
-            <option value="none">No default (choose every time)</option>
-            <option value="classic">Classic Review</option>
-            <option value="ai">AI Quiz</option>
-          </select>
-        </div>
+
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-200 mb-2">Typing tolerance (for Cloze)</label>
           <input
@@ -94,7 +100,6 @@ export default function Settings() {
         </div>
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-200 mb-2">Enable/Disable question types</label>
-
           <div className="space-y-2 mt-3">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -135,32 +140,6 @@ export default function Settings() {
               />
               <span>Enable True/False</span>
             </label>
-            
-            <span className="block text-sm font-medium text-gray-200 mb-2">Default Run Length</span>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="opacity-80">Sprint (15)</span>
-              <div className="relative inline-block w-11 h-5">
-                <input
-                  id="switch-component"
-                  type="checkbox"
-                  checked={settings.defaultRunMaxLength === 30}
-                  onChange={(e) => 
-                    setSettings((prev) => {
-                      return {
-                        ...prev,
-                        defaultRunMaxLength: (e.target.checked ? 30 : 15)
-                      }
-                    })
-                  }
-                  className="peer appearance-none w-11 h-5 bg-slate-100 rounded-full checked:bg-slate-800 cursor-pointer transition-colors duration-300"
-                />
-                <label
-                  htmlFor="switch-component"
-                  className="absolute top-0 left-0 w-5 h-5 bg-white rounded-full border border-slate-300 shadow-sm transition-transform duration-300 peer-checked:translate-x-6 peer-checked:border-slate-800 cursor-pointer"
-                />
-              </div>
-              <span className="opacity-80">Full (30)</span>
-            </div>
           </div>
         </div>
       </div>
