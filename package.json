@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
+    "@supabase/supabase-js": "^2.90.1",
     "dotenv": "^17.2.3",
     "framer-motion": "^11.18.2",
     "js-levenshtein": "^1.1.6",

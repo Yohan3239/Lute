@@ -1,0 +1,67 @@
+[
+  {
+    "id": "card-react-cleanup",
+    "deckId": "default-deck",
+    "question": "In React, when should a useEffect cleanup run?",
+    "answer": "Before the effect re-runs and on unmount",
+    "interval": 4,
+    "ease": 2.5,
+    "reps": 6,
+    "nextReview": 1767505016267,
+    "status": "review",
+    "learningStep": 0,
+    "lapses": 1
+  },
+  {
+    "id": "card-binary-search",
+    "deckId": "default-deck",
+    "question": "What is the time complexity of binary search on a sorted array?",
+    "answer": "O(log n)",
+    "interval": 3,
+    "ease": 2.55,
+    "reps": 5,
+    "nextReview": 1767507716267,
+    "status": "review",
+    "learningStep": 0,
+    "lapses": 0
+  },
+  {
+    "id": "card-spanish-apple",
+    "deckId": "default-deck",
+    "question": "Spanish word for 'apple'?",
+    "answer": "manzana",
+    "interval": 0,
+    "ease": 2.35,
+    "reps": 0,
+    "nextReview": 1767508496267,
+    "status": "learning",
+    "learningStep": 1,
+    "lapses": 0
+  },
+  {
+    "id": "card-http-201",
+    "deckId": "default-deck",
+    "question": "Which HTTP status code indicates a resource was successfully created?",
+    "answer": "201 Created",
+    "interval": 0,
+    "ease": 2.4,
+    "reps": 0,
+    "nextReview": 1767508916267,
+    "status": "learning",
+    "learningStep": 0,
+    "lapses": 0
+  },
+  {
+    "id": "card-css-flex",
+    "deckId": "default-deck",
+    "question": "What does CSS flex:1 do inside a flex container?",
+    "answer": "Allows the item to grow to fill remaining space",
+    "interval": 7,
+    "ease": 2.5,
+    "reps": 10,
+    "nextReview": 1767595016267,
+    "status": "review",
+    "learningStep": 0,
+    "lapses": 0
+  }
+]
