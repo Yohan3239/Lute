@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
@@ -9,6 +9,7 @@ const dataPath = path.join(app.getPath("userData"), "cards.json");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const decksPath = path.join(app.getPath("userData"), "decks.json");
+
 
 // The built directory structure
 //
@@ -38,10 +39,6 @@ function createWindow() {
     },
   })
 
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
@@ -134,18 +131,14 @@ ipcMain.handle("call-llm", async (_event, prompt: string) => {
     throw new Error("call-llm requires a prompt string");
   }
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const res = await fetch("https://udgogxcgqduosejsbrzv.supabase.co/functions/v1/call_groq", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY ?? ""}`,
+      Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY ?? ""}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-    }),
+    body: JSON.stringify({ prompt }),
   });
-
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`Groq error ${res.status}: ${errText}`);
@@ -155,4 +148,39 @@ ipcMain.handle("call-llm", async (_event, prompt: string) => {
   return data.choices?.[0]?.message?.content ?? "";
 });
 
+ipcMain.handle("open-external", async (_event, url: string) => {
+  await shell.openExternal(url);
+});
+// Handle deep linking for OAuth when app closed while waiting for callback
+const deepLink = process.argv.find((arg) => arg.startsWith("lute://"));
+if (deepLink) {
+  console.log("OAuth callback (app launch):", deepLink);
+  app.whenReady().then(() => {
+    win?.webContents.send("oauth-callback", deepLink);
+  });
+}
+
+app.setAsDefaultProtocolClient("lute");
+// Protocol handler for macOS
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  console.log("OAuth callback:", url);
+
+  win?.webContents.send("oauth-callback", url);
+});
+
+// Single instance lock to allow second-instance event
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
+app.on("second-instance", (_event, argv) => {
+  // Protocol handler for Windows
+  const url = argv.find(arg => arg.startsWith("lute://"));
+  if (url) {
+    console.log("OAuth callback (second-instance):", url);
+    win?.webContents.send("oauth-callback", url);
+  }
+});
 app.whenReady().then(createWindow)

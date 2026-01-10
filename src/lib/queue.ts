@@ -1,5 +1,6 @@
 import { Card } from "./types";
 import { DEFAULT_SETTINGS } from "./constants";
+import { getTodayString } from "./dateUtils";
 
 export function getDueCards(cards: Card[], deckId: string): Card[] {
   const loadDeckSettings = () => {
@@ -42,7 +43,7 @@ export function getDueCards(cards: Card[], deckId: string): Card[] {
   const reviewingCards = cards
     .filter(c => c.status === "review" && isDue(c))
     .sort(sortByLateness);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayString();
   const todayNewCount = Number(localStorage.getItem(`newCount-${deckId}-${today}`) ?? 0);
   const newCards = cards
     .filter(c => c.status === "new")
@@ -54,7 +55,7 @@ export function getDueCards(cards: Card[], deckId: string): Card[] {
   return [...learningCards, ...relearningCards, ...reviewingCards, ...newCards];
 }
 export function getNewCount(deckId: string, availableNew: number) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayString();
     const loadDeckSettings = () => {
     const raw = localStorage.getItem(`deck-${deckId}-settings`);
     if (!raw) return DEFAULT_SETTINGS;

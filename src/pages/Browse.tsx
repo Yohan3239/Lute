@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, Deck } from "../lib/types";
 import { listDecks } from "../lib/decks";
 import { Link } from "react-router-dom";
+import { formatDateMs } from "../lib/dateUtils";
 
 export default function Browse() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -204,7 +205,7 @@ export default function Browse() {
                     </td>
 
                     <td className="p-2 opacity-75 max-w-[10rem] truncate">
-                    {new Date(card.nextReview).toLocaleDateString()}
+                    {formatDateMs(card.nextReview)}
                     </td>
 
                     <td className="p-2">

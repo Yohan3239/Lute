@@ -5,6 +5,7 @@ import { listDecks, renameDeck, deleteDeck } from "../lib/decks";
 import { DEFAULT_DECK_ID, DEFAULT_SETTINGS } from "../lib/constants";
 import DeckSettings from "./DeckSettings";
 import Import from "./Import";
+import { formatDateMs } from "../lib/dateUtils";
 import AddCard from "./AddCard";
 
 export default function DeckDetail() {
@@ -133,7 +134,7 @@ export default function DeckDetail() {
 
             <div className="text-sm opacity-60">
               {cards.length} cards · created{" "}
-              {new Date(deck.created).toLocaleDateString()}
+              {formatDateMs(deck.created)}
             </div>
           </div>
 
@@ -163,6 +164,7 @@ export default function DeckDetail() {
         </div>
 
         {/* ACTION BUTTONS */}
+          <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex gap-3 mb-6">
           {defaultMode === "none" ? (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
@@ -190,7 +192,9 @@ export default function DeckDetail() {
               </Link>
             </div>
           )}
-
+        
+          </div>
+          <div className="flex gap-3 mb-6">
           <button
             type="button"
             onClick={()=> setShowAddCard(true)}
@@ -213,7 +217,7 @@ export default function DeckDetail() {
             Settings
           </button>
         </div>
-
+        </div>
         {/* CARD LIST */}
         <h2 className="text-xl mb-3">Cards</h2>
 

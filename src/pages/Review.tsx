@@ -11,6 +11,10 @@ import { DEFAULT_SETTINGS } from "../lib/constants";
 import { GameState, initialGameState, calculateBasePoints, calculateTimePoints, calculateMultPoints, savePointstoScore, calculateMultiplierStreak, calculateTimeMult, calculateReturnPoints } from "../lib/gameLogic";
 import { Grade } from "../lib/srs";
 import { useFitText } from "../lib/useFitText";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/useAuth";
+import { getTodayString, isConsecutiveDay } from "../lib/dateUtils";
+import { decrementCoins, useCoins } from "../lib/useCoins";
 
 const REQUEUE_WINDOW_MS = 15 * 60 * 1000; // bring back cards due within ~15 minutes
 
@@ -184,7 +188,8 @@ function AnimatedNumber({ value, decimals = 0, className, pulseKey, floatDigits 
   );
 }
 export default function Review() {
-
+  const { userId } = useAuth();
+  const coins = useCoins(userId);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "classic";
@@ -216,14 +221,14 @@ export default function Review() {
   const [manualgradingdisabled, setManualGradingDisabled] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   
-  const today = new Date().toISOString().slice(0, 10);
+
+  const today = getTodayString();
   const reviewMode = Boolean(deckId);
   const promptText = session?.current?.variant?.prompt ?? "";
   const answerText =
     session?.current?.variant?.type === "classic"
       ? session?.current?.variant?.answer ?? ""
       : "";
-
   useFitText(promptTextRef, promptContainerRef, { minSize: 20, maxSize: 56 }, [
     reviewMode,
     session?.current?.id,
@@ -306,7 +311,7 @@ export default function Review() {
   };
   const endSessionEarly = () => {
     if (!SESSION_KEY) return;
-    const confirm = window.confirm("End this session? Current score will be lost.");
+    const confirm = window.confirm("End this session? Current score will be lost. Session result will not be saved.");
     if (!confirm) return;
     localStorage.removeItem(SESSION_KEY);
     sessionRef.current = null;
@@ -353,13 +358,12 @@ export default function Review() {
   function streakBump() {
     if (streakLoggedRef.current) return;
     streakLoggedRef.current = true;
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const today = getTodayString();
     const last = localStorage.getItem("lastStreakDate") || "1970-01-01";
     const currentStreak = Number(localStorage.getItem("globalStreak")) || 0;
     if (last === today) {
       return; // already counted today
-    } else if (last === yesterday) {
+    } else if (isConsecutiveDay(last, today)) {
       localStorage.setItem("lastStreakDate", today);
       localStorage.setItem("globalStreak", (currentStreak + 1).toString());
     } else {
@@ -462,6 +466,9 @@ export default function Review() {
       );
       
       const s = new Session(VariantList, 0, initialGameState(), deckId || "", isAIReview, (runMaxLength === 30));
+      if (isAIReview && userId) {
+        await decrementCoins(userId, runMaxLength === 30 ? 2 : 1);
+      }
       sessionRef.current = s;
       setGame(initialGameState());
       setSession(s);
@@ -482,32 +489,58 @@ export default function Review() {
   // Keyboard shortcuts for classic mode (space to show, 1-4 to grade)
   useEffect(() => {
 
-    if (isAIReview) return;
+    if (!isAIReview) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (manualgradingdisabled) return; 
+
+        // Don't hijack typing
+        if (e.target instanceof HTMLInputElement) return;
+
+        // Space = show answer
+        if (!showAnswer && e.key === " ") {
+          e.preventDefault();
+          setShowAnswer(true);
+          return;
+        }
+
+        if (showAnswer) {
+          if (e.key === "1") gradeSubmission("wrong");
+          if (e.key === "2") gradeSubmission("hard");
+          if (e.key === "3") gradeSubmission("good");
+          if (e.key === "4") gradeSubmission("easy");
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+
+    // AI mode keyboard shortcuts
+    const v = session?.current?.variant;
+    if (!v) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (manualgradingdisabled) return; 
-
-      // Don't hijack typing
+      if (manualgradingdisabled) return;
       if (e.target instanceof HTMLInputElement) return;
 
-      // Space = show answer
-      if (!showAnswer && e.key === " ") {
-        e.preventDefault();
-        setShowAnswer(true);
-        return;
+      // True/False: 1=True, 2=False
+      if (v.type === "tf") {
+        if (e.key === "1") gradeSubmission(true);
+        if (e.key === "2") gradeSubmission(false);
       }
 
-      if (showAnswer) {
-        if (e.key === "1") gradeSubmission("wrong");
-        if (e.key === "2") gradeSubmission("hard");
-        if (e.key === "3") gradeSubmission("good");
-        if (e.key === "4") gradeSubmission("easy");
+      // MCQ: 1-4 for options
+      if (v.type === "mcq") {
+        const idx = parseInt(e.key) - 1;
+        if (idx >= 0 && idx < v.options.length) {
+          gradeSubmission(v.options[idx]);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showAnswer, isAIReview, manualgradingdisabled]);
+  }, [showAnswer, isAIReview, manualgradingdisabled, session?.current?.variant]);
 
   // -------------------------------------------------
   // CASE 1: Review homepage (deck list)
@@ -519,7 +552,7 @@ export default function Review() {
       const availableNew = cards.filter((c) => c.deckId === id && c.status === "new").length;
       return getNewCount(id, availableNew);
     };
-    
+    const notEnoughCoins = (coins ?? 0) < (runMaxLength === 30 ? 2 : 1);
     const sessionInfos = getSessionInfo().filter(
       (s): s is NonNullable<ReturnType<typeof getSessionInfo>[number]> => Boolean(s)
     );
@@ -530,7 +563,7 @@ export default function Review() {
         <div className= "text-gray-100 p-6 flex flex-row justify-between">
           <h1 className="text-2xl mb-4">Select Deck to review</h1>
           <div className="flex items-center gap-3 text-gray-100 text-xl">
-            <span className="opacity-80">Sprint | 15</span>
+            <span className="opacity-80">Sprint (15)</span>
             <div className="relative inline-block w-[4.25rem] h-8">
               <input
                 id="switch-component"
@@ -544,7 +577,7 @@ export default function Review() {
                 className="absolute top-0 left-0 w-8 h-8 bg-white rounded-full border border-slate-300 shadow-sm transition-transform duration-300 peer-checked:translate-x-9 peer-checked:border-slate-800 cursor-pointer z-10"
               />
             </div>
-            <span className="opacity-80">Full | 30</span>
+            <span className="opacity-80">Full (30)</span>
           </div>
         </div>
 
@@ -586,16 +619,22 @@ export default function Review() {
                       {aiSaveExists ? "Session in progress" : "Classic"}
                     </Link>
 
-                    <Link className={`${classicSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
-                      to={`/review/${deck.id}?mode=ai`} 
-                        onClick={(e) => {
-                        if (classicSaveExists) {
-                          e.preventDefault();
-                        }
-                      }} 
-                    >
-                      {classicSaveExists ? "Session in progress" : "Quiz"}
-                    </Link>
+                    {(() => {
+                      const canStartAI = userId && ((coins ?? 0) >= (runMaxLength === 30 ? 2 : 1));
+                      const aiLocked = classicSaveExists || !canStartAI;
+                      return (
+                        <Link className={`${aiLocked ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
+                          to={`/review/${deck.id}?mode=ai`} 
+                          onClick={(e) => {
+                            if (aiLocked) {
+                              e.preventDefault();
+                            }
+                          }} 
+                        >
+                          {classicSaveExists ? "Session in progress" : !userId ? "Log in for Quiz mode" : notEnoughCoins ? "Not enough coins" : "Quiz"}
+                        </Link>
+                      );
+                    })()}
                   </div>
                 
               </div> 
@@ -610,15 +649,18 @@ export default function Review() {
               const currentMode = defaultMode.toLowerCase();
               const otherMode = currentMode === "ai" ? "classic" : "ai";
               const otherModeActive = sessionInfos.some((s) => s.deckId === deck.id && s.mode === otherMode);
+              const thisModeActive = sessionInfos.some((s) => s.deckId === deck.id && s.mode === currentMode);
+              const canStartAI = userId && (coins !== null && coins >= (runMaxLength === 30 ? 2 : 1) || thisModeActive);
+              const shouldLock = otherModeActive || (defaultMode === "ai" && !canStartAI);
 
               return (
                 <Link
                   key={deck.id}
                   to={`/review/${deck.id}?mode=${defaultMode}`}
-                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors ${otherModeActive ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors ${shouldLock ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
                   onClick={(e) => {
-                    if (otherModeActive) {
-                      e.preventDefault();
+                      if (shouldLock) {
+                        e.preventDefault(); 
                     }
                   }}
                 >
@@ -641,12 +683,27 @@ export default function Review() {
                       );
                     })()}
                   </div>
-                  
+
                   {otherModeActive ? (
                     <div className="opacity-60 text-sm text-gray-400">
                       Other mode in progress
                     </div>
-                  ) : null}
+                  ) : defaultMode === "ai" && !userId ? (
+                    <div className="opacity-60 text-sm text-gray-400">
+                      Log in for Quiz mode
+                    </div>
+                  ) : (
+                    defaultMode === "ai" && notEnoughCoins && shouldLock && !thisModeActive ? (
+                      <div className="opacity-60 text-sm text-gray-400">
+                        Not enough coins
+                      </div>
+                    ) : 
+                    thisModeActive ? (
+                    <div className="opacity-60 text-sm text-gray-400">
+                        Continue Session
+                    </div>
+                    ) : null
+                  )}
                 </Link>
               );
             })}
@@ -752,7 +809,7 @@ export default function Review() {
         setPointsPulse((p) => p+1);
       }
       
-      if (step.name === "base") spawnPopup(`+${state.points - before.points} Answer`, "points", scaleFactor);
+      if (step.name === "base") spawnPopup(`+${state.points - before.points} ${grade}`, "points", scaleFactor);
       if (step.name === "timePoints") spawnPopup(`+${state.points - before.points} Speed`, "points", scaleFactor);
       if (step.name === "timeMult") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Speed`, "mult", scaleFactor);
       if (step.name === "streak") spawnPopup(`+${(state.multiplier - before.multiplier).toFixed(1)} Streak`, "mult", scaleFactor);
@@ -780,8 +837,21 @@ export default function Review() {
     }
 
     if (s.noNextCard()) {
+
       const finishDelayMs = 1200;
-      window.setTimeout(() => {
+      window.setTimeout(async () => {
+        if (!userId) {
+          console.warn("No user ID; cannot save session results.");
+          return;
+        }
+        await supabase.from("runs").insert({
+          user_id: userId,
+          final_score: Math.floor(state.score),
+          mode: isAIReview ? "ai" : "classic",
+          run_size: runMaxLength,
+        }); 
+
+        
         streakBump();
         if (SESSION_KEY) localStorage.removeItem(SESSION_KEY);
         setFinished(true);
@@ -790,8 +860,8 @@ export default function Review() {
       }, finishDelayMs);
     } else {
       setGame(state);
-      s.next();
-      const nextSession = new Session([...s.results], s.position, state, deckId || "", isAIReview, (runMaxLength === 30));
+      const nextIndex = s.position + 1;
+      const nextSession = new Session([...s.results], nextIndex, state, deckId || "", isAIReview, (runMaxLength === 30));
       sessionRef.current = nextSession;
       setTimeout(() => {
         setSession(nextSession); // keep cursor position, with updated game state
@@ -998,21 +1068,23 @@ export default function Review() {
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               variants={itemVariants}
-              className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
+              className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500 flex items-center justify-between
                         ${showAnswer && card.variant?.answer === true ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
               onClick={() => gradeSubmission(true)}
             >
               <span className="relative z-10">True</span>
+              <span className="opacity-50 text-xs">1</span>
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               variants={itemVariants}
-              className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
+              className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500 flex items-center justify-between
                         ${showAnswer && card.variant?.answer === false ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
               onClick={() => gradeSubmission(false)}
             >
               <span className="relative z-10">False</span>
+              <span className="opacity-50 text-xs">2</span>
             </motion.button>
           </motion.div>
         </motion.div>
@@ -1021,16 +1093,19 @@ export default function Review() {
 
         {v?.type === "mcq" && (
           <motion.div className="p-4 border border-white/10 rounded bg-[#111113]" initial="hidden" animate="show" variants={listVariants}>
-          <span className="text-sm opacity-60 mb-1 text-gray-400">Options   </span>
+          <span className="text-sm opacity-60 mb-1 text-gray-400">Options</span>
             <motion.ul className="mt-3 space-y-2" variants={listVariants}>
               {v.options.map((opt, i) => (
                 <motion.li key={i} className="p-2 rounded bg-[#16161a] border border-white/10" variants={itemVariants}>
                   <motion.button 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
-                  className={`px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500
+                  className={`w-full px-4 py-2 rounded bg-[#16161a] text-gray-100 hover:border-indigo-300/70 disabled:bg-gray-800 disabled:text-gray-500 flex items-center justify-between
                     ${showAnswer && opt === v.answer ? "ring-4 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]" : ""}`}
-                  onClick={() => gradeSubmission(opt)}>{opt}</motion.button>
+                  onClick={() => gradeSubmission(opt)}>
+                    <span>{opt}</span>
+                    <span className="opacity-50 text-xs">{i + 1}</span>
+                  </motion.button>
                 </motion.li>
 
               ))}

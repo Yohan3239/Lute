@@ -5,6 +5,7 @@ import { listDecks } from "../lib/decks";
 import { DEFAULT_SETTINGS } from "../lib/constants";
 import { getSaveExists } from "./Review";
 import { getNewCount } from "../lib/queue";
+import { getTodayString, isConsecutiveDay } from "../lib/dateUtils";
 
 function readStreak() {
   return {
@@ -14,11 +15,10 @@ function readStreak() {
 }
 
 const resetStreak = () => {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = getTodayString();
   const lastStreakDate = localStorage.getItem("lastStreakDate") || "1970-01-01";
   
-  if (lastStreakDate === today || lastStreakDate === yesterday) {
+  if (lastStreakDate === today || isConsecutiveDay(lastStreakDate, today)) {
     return; // is fine
   } else {
     localStorage.setItem("globalStreak", "0");
@@ -86,9 +86,9 @@ export default function Home() {
   const defaultMode = loadDefaultMode();
   const dayName = (i: number) =>
     i === 0 ? "Today" : i === 1 ? "Tomorrow" : `+${i} days`;
-
   return (
     <div className="text-gray-100 p-6 space-y-8">
+
       <h1 className="text-3xl font-semibold mb-4">Dashboard</h1>
 
       {/* ---------------- TODAY STATS ---------------- */}
@@ -104,12 +104,12 @@ export default function Home() {
 
         <div className="p-4 bg-[#111113] border border-white/5 rounded-lg shadow-[0_0_30px_-10px_rgba(129,140,248,0.2)] ">
           {globalStreak > 0 && 
-          <div className="text-5xl font-bold text-indigo-300 hover:scale-105">{globalStreak }</div>
+          <div className="text-4xl font-bold text-indigo-300 hover:scale-105">{globalStreak }</div>
           } 
           {globalStreak === 0 &&
           <div className="text-4xl font-bold text-gray-500 hover:scale-105">{globalStreak}</div>
           }
-          <div className="text-lg tracking-wide text-gray-400">Streak</div>
+          <div className="text-lg tracking-wide opacity-70 text-gray-400">Streak</div>
           <div className="text-sm tracking-wide text-gray-400/70">
             Last Review: {lastStreakDate}
           </div>

@@ -124,24 +124,24 @@ export default function DecksPage() {
           </div>
         </div>
       )}
-{activeDeckId && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <button
-          type="button"
-          className="absolute inset-0 bg-black/60"
-          onClick={() => setActiveDeckId(null)}
-          aria-label="Close settings"
-        />
-        <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+      {activeDeckId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
           <button
             type="button"
+            className="absolute inset-0 bg-black/60"
             onClick={() => setActiveDeckId(null)}
-            className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
-          >
-            Close
-          </button>
-          <DeckSettings deckId={activeDeckId} />
-        </div>
+            aria-label="Close settings"
+          />
+          <div className="relative w-full max-w-3xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-[#111113] shadow-[0_30px_120px_-40px_rgba(0,0,0,0.9)]">
+            <button
+              type="button"
+              onClick={() => setActiveDeckId(null)}
+              className="absolute right-4 top-4 rounded-md border border-white/10 px-2 py-1 text-sm text-gray-200 hover:border-indigo-300/70"
+            >
+              Close
+            </button>
+            <DeckSettings deckId={activeDeckId} />
+          </div>
       </div>
       )}
 

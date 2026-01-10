@@ -12,8 +12,15 @@ import Browse from "./pages/Browse";
 import Settings from "./pages/Settings";
 import Import from "./pages/Import";
 import DeckSettings from "./pages/DeckSettings";
+import { listenForOAuth } from "./lib/useAuth";
+import { useEffect } from "react";
+import DevAuthCallback from "./lib/devAuthCallback";
 export default function App() {
+  useEffect(() => {
+    listenForOAuth();
+  }, []);
   return (
+    
     <HashRouter>
       <div className="flex h-screen w-screen bg-[#0b0b0d] text-gray-100 font-inter antialiased overflow-hidden">
         <Sidebar />
@@ -38,6 +45,8 @@ export default function App() {
               <Route path="/cards/:id" element={<EditCard />} />
 
               <Route path="/settings" element={<Settings />} />
+              <Route path="/auth-callback" element={<DevAuthCallback />} />
+
             </Routes>
           </div>
         </div>

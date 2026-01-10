@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_SETTINGS, type SettingsState } from "../lib/constants";
+import { useAuth } from "../lib/useAuth";
 
 export default function Settings() {
   const ensureAtLeastOneQuestionType = (next: SettingsState, prev: SettingsState) => {
     const enabledCount = [next.enableMultipleChoice, next.enableCloze, next.enableTrueFalse].filter(Boolean).length;
     return enabledCount === 0 ? prev : next;
   };
-
+  const {userId, signOut} = useAuth();
   const [settings, setSettings] = useState<SettingsState>(() => {
     const raw = localStorage.getItem("settings");
     if (!raw) return DEFAULT_SETTINGS;
@@ -160,10 +161,21 @@ export default function Settings() {
                 />
               </div>
               <span className="opacity-80">Full (30)</span>
+
             </div>
+
           </div>
+          
         </div>
+        
       </div>
+      {userId &&
+        <button className=" hover:bg-white/20 bg-white/10 text-rose-500 border border-white/15 shadow-inner shadow-indigo-500/10 group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition"
+      
+          onClick={signOut}>Sign out
+        
+        </button>
+      }
     </div>
   );
 }

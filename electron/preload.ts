@@ -14,3 +14,11 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
   removeListener: (channel: string, listener: (event: IpcRendererEvent, ...args: any[]) => void) =>
     ipcRenderer.removeListener(channel, listener),
 });
+contextBridge.exposeInMainWorld("authAPI", {
+  openExternal: (url: string) =>
+    ipcRenderer.invoke("open-external", url),
+
+  onOAuthCallback: (cb: (url: string) => void) =>
+    ipcRenderer.on("oauth-callback", (_e, url) => cb(url)),
+});
+
