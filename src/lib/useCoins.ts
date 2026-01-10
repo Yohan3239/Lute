@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
+import { format } from "date-fns";
 
 // Fetch coins from DB
 export async function fetchCoins(userId: string): Promise<number> {
@@ -44,4 +45,20 @@ export function useCoins(userId: string | null) {
   }, [userId]);
 
   return coins;
+}
+
+export async function getScoreboard(userId: string) {
+  const { data, error } = await supabase.rpc("get_top_runs", { uid: userId });
+  
+  if (error || !data) {
+    console.error("Error fetching scoreboard:", error);
+    return { scores: [], times: [] };
+  }
+
+  const scores = data.map((record: { final_score: number }) => record.final_score);
+  const times = data.map((record: { ended_at: string }) => 
+    format(new Date(record.ended_at), "MMM d, yyyy HH:mm")
+  );
+  
+  return { scores, times };
 }

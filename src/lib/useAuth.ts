@@ -77,8 +77,21 @@ export function useAuth() {
   }
 
 
-  const signOut = async () => supabase.auth.signOut();
-
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Signout error:", error);
+        localStorage.removeItem("sb-udgogxcgqduosejsbrzv-auth-token");
+        window.location.href = "/#/";
+      }
+    } catch (err) {
+      console.error("Signout exception:", err);
+      localStorage.removeItem("sb-udgogxcgqduosejsbrzv-auth-token");
+      window.location.href = "/#/";
+    }
+  };
+  
   return { user, userId, loading, signInWithGoogle, signOut };
 
 }

@@ -586,6 +586,9 @@ export default function Review() {
             {decks.map((deck) => {
               const classicSaveExists = sessionInfos.some((s) => s.mode === "classic" && s.deckId === deck.id);
               const aiSaveExists = sessionInfos.some((s) => s.mode === "ai" && s.deckId === deck.id);
+              const due = countDue(deck.id);
+              const newCards = countNew(deck.id);
+              const nothingToDo = due === 0 && newCards === 0;
               return (
                                <div className= "flex flex-row items-center justify-between px-3 py-2" key={deck.id}>
                 <div className="px-4 py-3 transition-colors flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -601,29 +604,29 @@ export default function Review() {
 
                   })()}
 
-                  <div className="opacity-60 text-sm text-gray-400">{countDue(deck.id)} due  {countNew(deck.id) > 0 ? `| +${countNew(deck.id)} new` : ""} </div>
+                  <div className="opacity-60 text-sm text-gray-400">{due} due  {newCards > 0 ? `| +${newCards} new` : ""} </div>
                   <div className="space-x-2">
 
                   </div>
 
                 </div>
                   <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
-                    <Link className={`${aiSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
+                    <Link className={`${aiSaveExists || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
                       to={`/review/${deck.id}?mode=classic`}
                       onClick={(e) => {
-                        if (aiSaveExists) {
+                        if (aiSaveExists || nothingToDo) {
                           e.preventDefault();
                         }
                       }} 
                     >
-                      {aiSaveExists ? "Session in progress" : "Classic"}
+                      {aiSaveExists ? "Active" : "Classic"}
                     </Link>
 
                     {(() => {
                       const canStartAI = userId && ((coins ?? 0) >= (runMaxLength === 30 ? 2 : 1));
-                      const aiLocked = classicSaveExists || !canStartAI;
+                      const aiLocked = classicSaveExists || !canStartAI || nothingToDo;
                       return (
-                        <Link className={`${aiLocked ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
+                        <Link className={`${aiLocked ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
                           to={`/review/${deck.id}?mode=ai`} 
                           onClick={(e) => {
                             if (aiLocked) {
@@ -631,7 +634,7 @@ export default function Review() {
                             }
                           }} 
                         >
-                          {classicSaveExists ? "Session in progress" : !userId ? "Log in for Quiz mode" : notEnoughCoins ? "Not enough coins" : "Quiz"}
+                          {classicSaveExists ? "Active" : !userId ? "Login" : notEnoughCoins ? "No coins" : "Quiz"}
                         </Link>
                       );
                     })()}
@@ -650,14 +653,17 @@ export default function Review() {
               const otherMode = currentMode === "ai" ? "classic" : "ai";
               const otherModeActive = sessionInfos.some((s) => s.deckId === deck.id && s.mode === otherMode);
               const thisModeActive = sessionInfos.some((s) => s.deckId === deck.id && s.mode === currentMode);
+              const due = countDue(deck.id);
+              const newCards = countNew(deck.id);
+              const nothingToDo = due === 0 && newCards === 0;
               const canStartAI = userId && (coins !== null && coins >= (runMaxLength === 30 ? 2 : 1) || thisModeActive);
-              const shouldLock = otherModeActive || (defaultMode === "ai" && !canStartAI);
+              const shouldLock = otherModeActive || (defaultMode === "ai" && !canStartAI) || nothingToDo;
 
               return (
                 <Link
                   key={deck.id}
                   to={`/review/${deck.id}?mode=${defaultMode}`}
-                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors ${shouldLock ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors ${shouldLock ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                   onClick={(e) => {
                       if (shouldLock) {
                         e.preventDefault(); 
@@ -668,7 +674,7 @@ export default function Review() {
                     <span>{deck.name}</span>
                     {(() => {
                       const active = sessionInfos.find((s) => s.deckId === deck.id && currentMode === s.mode);
-                      const dueNew = `${countDue(deck.id)} due • ${countNew(deck.id)} new`;
+                      const dueNew = `${due} due • ${newCards} new`;
                       return (
                         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
                           {active ? (
@@ -686,16 +692,16 @@ export default function Review() {
 
                   {otherModeActive ? (
                     <div className="opacity-60 text-sm text-gray-400">
-                      Other mode in progress
+                      Other mode active
                     </div>
                   ) : defaultMode === "ai" && !userId ? (
                     <div className="opacity-60 text-sm text-gray-400">
-                      Log in for Quiz mode
+                      Login
                     </div>
                   ) : (
                     defaultMode === "ai" && notEnoughCoins && shouldLock && !thisModeActive ? (
                       <div className="opacity-60 text-sm text-gray-400">
-                        Not enough coins
+                        No coins
                       </div>
                     ) : 
                     thisModeActive ? (
@@ -840,16 +846,15 @@ export default function Review() {
 
       const finishDelayMs = 1200;
       window.setTimeout(async () => {
-        if (!userId) {
-          console.warn("No user ID; cannot save session results.");
-          return;
+        if (userId) {
+          await supabase.from("runs").insert({
+            user_id: userId,
+            final_score: Math.floor(state.score),
+            mode: isAIReview ? "ai" : "classic",
+            run_size: runMaxLength,
+          }); 
         }
-        await supabase.from("runs").insert({
-          user_id: userId,
-          final_score: Math.floor(state.score),
-          mode: isAIReview ? "ai" : "classic",
-          run_size: runMaxLength,
-        }); 
+
 
         
         streakBump();

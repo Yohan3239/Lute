@@ -7,6 +7,7 @@ import DeckSettings from "./DeckSettings";
 import Import from "./Import";
 import { formatDateMs } from "../lib/dateUtils";
 import AddCard from "./AddCard";
+import { getNewCount } from "../lib/queue";
 
 export default function DeckDetail() {
   const { deckId } = useParams();
@@ -37,6 +38,7 @@ export default function DeckDetail() {
   const newCount = cards.filter(c => c.status === "new").length;
   const learningCount = cards.filter(c => c.status === "learning" || c.status === "relearning").length;
   const dueCount = cards.filter(c => c.nextReview <= now  && c.status !== "new").length;
+  const nothingToDo = dueCount === 0 && getNewCount(deckId ?? "", cards.filter((c) => c.status === "new").length) === 0;
 
   
   // Load deck info + cards
@@ -169,15 +171,20 @@ export default function DeckDetail() {
           {defaultMode === "none" ? (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
               <Link
-                className="px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition"
+                className={`px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                 to={`/review/${deck.id}?mode=classic`}
               >
                 Classic
               </Link>
 
               <Link
-                className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
+                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                 to={`/review/${deck.id}?mode=ai`}
+                onClick={(e) => {
+                  if (nothingToDo) {
+                    e.preventDefault();
+                  }
+                }}
               >
                 Quiz
               </Link>
@@ -185,8 +192,13 @@ export default function DeckDetail() {
           ) : (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
               <Link
-                className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition"
+                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                 to={`/review/${deck.id}?mode=${defaultMode}`}
+                onClick={(e) => {
+                  if (nothingToDo) {
+                    e.preventDefault();
+                  }
+                }}
               >
                 Review
               </Link>

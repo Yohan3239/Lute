@@ -134,7 +134,7 @@ ipcMain.handle("call-llm", async (_event, prompt: string) => {
   const res = await fetch("https://udgogxcgqduosejsbrzv.supabase.co/functions/v1/call_groq", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY ?? ""}`,
+      Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZ29neGNncWR1b3NlanNicnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODE2NzksImV4cCI6MjA4MzU1NzY3OX0.sze2KFS1F9G2f6z4JmXD9I2BRKkltIQoQOE6VQdlXfk`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ prompt }),

@@ -59,7 +59,7 @@ export default function Topbar() {
         <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-gray-200">
           <span className="tracking-wide">{today}</span>
           {coins !== null && (
-            <span className="ml-2">AI Coins: {coins}</span>
+            <span className="ml-2">🪙 {coins}</span>
           )}
         </span>
       </div>

@@ -6,6 +6,8 @@ import { DEFAULT_SETTINGS } from "../lib/constants";
 import { getSaveExists } from "./Review";
 import { getNewCount } from "../lib/queue";
 import { getTodayString, isConsecutiveDay } from "../lib/dateUtils";
+import { useAuth } from "../lib/useAuth";
+import { getScoreboard } from "../lib/useCoins";
 
 function readStreak() {
   return {
@@ -25,9 +27,22 @@ const resetStreak = () => {
   }
 }
 export default function Home() {
+  const { userId } = useAuth();
+
   const [cards, setCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [{ globalStreak, lastStreakDate }, setStreakState] = useState(readStreak);
+  const [scores, setScores] = useState<number[]>([]);
+  const [times, setTimes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (userId) {
+      getScoreboard(userId).then(({ scores, times }) => {
+        setScores(scores);
+        setTimes(times);
+      });
+    }
+  }, [userId]);
 
   useEffect(() => {
     resetStreak();
@@ -40,7 +55,7 @@ export default function Home() {
     // refresh when returning to the tab/home
     const onFocus = () => {
       resetStreak();
-
+      
       setStreakState(readStreak());
     }
     
@@ -124,6 +139,7 @@ export default function Home() {
           {deckStats.map((deck) => {
             const save = getSaveExists(deck);
             const otherModeActive = defaultMode === "ai" ? save.classicSaveExists : save.aiSaveExists;
+            const nothingToDo = deck.due === 0 && deck.new === 0;
             return (
             <div
               key={deck.id}
@@ -137,40 +153,40 @@ export default function Home() {
               </div>
               {defaultMode === "none" ? (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
-                  <Link className={`${save.aiSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
+                  <Link className={`${save.aiSaveExists || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition`}
                     to={`/review/${deck.id}?mode=classic`}
                     onClick={(e) => {
-                      if (save.aiSaveExists) {
+                      if (save.aiSaveExists || nothingToDo) {
                         e.preventDefault();
                       }
                     }} 
                   >
-                    {save.aiSaveExists ? "Session in progress" : "Classic"}
+                    {save.aiSaveExists ? "Active" : "Classic"}
                   </Link>
 
-                  <Link className={`${save.classicSaveExists ? "opacity-40 cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
+                  <Link className={`${save.classicSaveExists || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
                     to={`/review/${deck.id}?mode=ai`} 
                       onClick={(e) => {
-                      if (save.classicSaveExists) {
+                      if (save.classicSaveExists || nothingToDo) {
                         e.preventDefault();
                       }
                     }} 
                   >
-                    {save.classicSaveExists ? "Session in progress" : "Quiz"}
+                    {save.classicSaveExists ? "Active" : "Quiz"}
                   </Link>
                 </div>
               ) : (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
                   <Link
-                    className={`flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${otherModeActive ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+                    className={`flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${otherModeActive || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                     to={`/review/${deck.id}?mode=${defaultMode}`}
                     onClick={(e) => {
-                      if (otherModeActive) {
+                      if (otherModeActive || nothingToDo) {
                         e.preventDefault();
                       }
                     }}
                   >
-                    {otherModeActive ? "Other mode in progress" : "Review"}
+                    {otherModeActive ? "Active" : "Review"}
                   </Link>
                 </div>
               )}
@@ -184,25 +200,89 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ---------------- FORECAST ---------------- */}
-      <div>
-        <h2 className="text-xl mb-3">7-Day Review Forecast</h2>
-
-        <div className="space-y-2">
-          {forecast.map((count, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="w-24 opacity-70 text-gray-400">{dayName(i)}</div>
-              <div className="flex-1 h-2 bg-white/5 rounded">
-                <div
-                  className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
-                  style={{ width: `${Math.min(count * 8, 100)}%` }}
-                ></div>
-              </div>
-              <div className="w-10 text-right opacity-80 text-gray-300">{count}</div>
+      {/* ---------------- FORECAST & SCOREBOARD ---------------- */}
+      {userId && (
+        <div className="grid grid-cols-2 gap-6">
+          {/* 7-Day Forecast - Left */}
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl mb-2">7-Day Forecast</h2>
+            <div className="space-y-2">
+              {forecast.map((count, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-20 opacity-70 text-gray-400 text-sm">{dayName(i)}</div>
+                  <div className="flex-1 h-2 bg-white/5 rounded">
+                    <div
+                      className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+                      style={{ width: `${Math.min(count * 8, 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="w-8 text-right opacity-80 text-gray-300 text-sm">{count}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Scoreboard - Right */}
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl mb-2">Scoreboard</h2>
+            {scores.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left column - first 5 */}
+                <div className="space-y-1">
+                  {scores.slice(0, 5).map((score, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-[#111113] border border-white/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500 w-5">{i + 1}.</span>
+                        <span className="text-lg font-bold text-indigo-300">{score}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{times[i]}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Right column - next 5 */}
+                <div className="space-y-1">
+                  {scores.slice(5, 10).map((score, i) => (
+                    <div key={i + 5} className="flex items-center justify-between px-3 py-2 bg-[#111113] border border-white/5 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500 w-5">{i + 6}.</span>
+                        <span className="text-lg font-bold text-indigo-300">{score}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{times[i + 5] || ""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-[#111113] border border-white/5 rounded-lg text-sm text-gray-400">
+                No runs yet
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {!userId && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl mb-2">7-Day Forecast</h2>
+          <div className="space-y-2">
+            {forecast.map((count, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-24 opacity-70 text-gray-400">{dayName(i)}</div>
+                <div className="flex-1 h-2 bg-white/5 rounded">
+                  <div
+                    className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
+                    style={{ width: `${Math.min(count * 8, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="w-10 text-right opacity-80 text-gray-300">{count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
     </div>
+      
   );
 }

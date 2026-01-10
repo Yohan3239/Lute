@@ -21,6 +21,9 @@ declare module "js-levenshtein" {
     function levenshtein(a: string, b: string): number;
     export default levenshtein;
 }
-
+declare module "date-fns" {
+    function format(date: Date | number, formatString: string): string;
+    export { format };
+}
 
 
