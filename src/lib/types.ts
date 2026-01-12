@@ -3,7 +3,22 @@ import { MCQ, Cloze, TrueFalse } from "./llm";
 export type CardStatus = "new" | "learning" | "review" | "relearning";
 export type Classic = { type: "classic"; prompt: string; answer: string };
 export type ReviewVariant = MCQ | Cloze | TrueFalse | Classic;
-export type VariantCard = Card & {variant:ReviewVariant | null; runReturnedCount: number;};
+export type VariantCard = Card & {
+  variant: ReviewVariant | null;
+  runReturnedCount: number;
+  statusData?: Record<statusDatatype, any>[];  // Session-only event metadata
+};
+export type statusDatatype = "burn" | "wet" | "poison" | "frozen" | "tempo up" | "overcharged" | "cursed" | "lucky";
+export enum ArtifactType {
+  FIRE_RING = "fire_ring",
+  WATER_AMULET = "water_amulet",
+  TOXIC_CHARM = "toxic_charm",
+  ICE_TALISMAN = "ice_talisman",
+  WIND_BRACELET = "wind_bracelet",
+  STEAM_CORE = "steam_core",
+  GAMBLERS_DICE = "gamblers_dice",
+  SUPERCHARGER = "supercharger",
+}
 
 export interface Card {
   id: string;

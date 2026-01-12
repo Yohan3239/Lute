@@ -4,7 +4,7 @@ import { Card } from "./types";
 // ---- Tunable knobs (roughly Anki-ish) ----
 
 // Learning steps for NEW cards (in minutes)
-const LEARNING_STEPS_MIN = [5, 30];
+const LEARNING_STEPS_MIN = [3, 15];
 
 // Relearning steps for LAPSED cards (in minutes)
 const LAPSE_STEPS_MIN = [10]; // just 10 minutes for now
@@ -12,12 +12,12 @@ const LAPSE_STEPS_MIN = [10]; // just 10 minutes for now
 // Ease factor settings
 const START_EASE = 2.5;
 const MIN_EASE = 1.3;
-const EASY_BONUS = 1.3;          // extra bonus for "Easy"
 const LAPSE_INTERVAL_MULT = 0.7; // old interval × 0.5 on lapse
-
+const EASY_BONUS = 1.3;    // multiply interval by this on "easy"
 // Interval constants
 const DAY_MS = 1000 * 60 * 60 * 24;
 const GRADUATING_INTERVAL_DAYS = 1;
+const EASY_GRADUATING_INTERVAL_DAYS = 4;
 
 export type Grade = "easy" | "good" | "hard" | "wrong";
 
@@ -61,7 +61,7 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
       // NEW + EASY → graduate immediately as review with ~4d
       card.status = "review";
       card.reps += 1;
-      card.interval = 4;
+      card.interval = EASY_GRADUATING_INTERVAL_DAYS;
       card.nextReview = t + card.interval * DAY_MS;
       return card;
     }
@@ -89,6 +89,21 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
       card.nextReview = t + steps[0] * 60_000;
       return card;
     }
+
+    // EASY: skip remaining steps and graduate immediately
+    if (grade === "easy") {
+      card.status = "review";
+      card.learningStep = 0;
+      card.reps += 1;
+
+
+      card.interval = EASY_GRADUATING_INTERVAL_DAYS;
+
+      card.ease = Math.max(MIN_EASE, card.ease + 0.15);
+      card.nextReview = t + card.interval * DAY_MS;
+      return card;
+    }
+
     if (grade === "hard") {
       const cur = card.learningStep;
 
@@ -133,9 +148,6 @@ export function reviewCard(rawCard: Card, grade: Grade): Card {
     if (grade === "good") {
       card.interval = Math.max(1, card.interval);
       // ease unchanged
-    } else if (grade === "easy") {
-      card.interval = Math.max(1, Math.round(card.interval * EASY_BONUS));
-      card.ease = Math.max(MIN_EASE, card.ease + 0.15);
     }
 
     card.nextReview = t + card.interval * DAY_MS;

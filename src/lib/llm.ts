@@ -4,51 +4,74 @@ export type MCQ = { type: "mcq"; prompt: string; options: string[]; answer: stri
 export type Cloze = { type: "cloze"; prompt: string; answer: string };
 export type TrueFalse = { type: "tf"; prompt: string; answer: boolean };
 
-async function callAndParse<T>(prompt: string): Promise<T | null> {
+async function callAndParse<T>(prompt: string, isProUser: boolean): Promise<T | null> {
   try {
-    const raw:string = await window.api.callLLM(prompt);
+    const raw:string = await window.api.callLLM(prompt, isProUser);
     return JSON.parse(raw) as T;
   } catch (err) {
+    
     console.error("LLM parse failed", err);
     return null;
   }
 }
 
-export async function generateMCQ(card: Card): Promise<MCQ | null> {
-  const prompt = `Return ONLY valid JSON, no extra text:
-{"type":"mcq","prompt":"question text","options":["A","B","C","D"],"answer":"correct option"}
+export async function generateMCQ(card: Card, isProUser: boolean): Promise<MCQ | null> {
+  const prompt = `You are a flashcard quiz generator. Output ONLY valid JSON, nothing else.
 
-Create a multiple-choice question from the flashcard. One correct answer, three plausible distractors. The "answer" field must exactly match one option.
+Format: {"type":"mcq","prompt":"question","options":["A","B","C","D"],"answer":"exact match of correct option"}
 
-Flashcard Q: ${card.question}
-Flashcard A: ${card.answer}
+Rules:
+- Create a clear, specific question testing the flashcard knowledge
+- The correct answer must be "${card.answer}" or a close variation
+- Generate 3 plausible but incorrect distractors
+- "answer" field must EXACTLY match one of the options (copy-paste it)
+- Keep answers short (1-5 words ideally)
+- Randomize correct answer position
 
-JSON only:`;
-  return callAndParse<MCQ>(prompt);
+Flashcard:
+Q: ${card.question}
+A: ${card.answer}
+
+ONLY IN VALID JSON:`;
+  return callAndParse<MCQ>(prompt, isProUser);
 }
 
-export async function generateCloze(card: Card): Promise<Cloze | null> {
-  const prompt = `Return ONLY valid JSON, no extra text:
-{"type":"cloze","prompt":"sentence with _____","answer":"word(s) for blank"}
+export async function generateCloze(card: Card, isProUser: boolean): Promise<Cloze | null> {
+  const prompt = `You are a flashcard quiz generator. Output ONLY valid JSON, nothing else.
 
-Create a cloze deletion: if the Answer appears in Question, replace it with "_____". Otherwise, insert Answer naturally then replace with "_____". Keep original wording. ONE blank, 1-4 words.
+Format: {"type":"cloze","prompt":"sentence with _____ blank","answer":"exact fill-in word(s)"}
 
-Flashcard Q: ${card.question}
-Flashcard A: ${card.answer}
+Rules:
+- Create a sentence where the answer "${card.answer}" fills the blank
+- Use _____ (5 underscores) for the blank
+- The "answer" field must be EXACTLY what the user should type: "${card.answer}"
+- Keep the answer short: 1-3 words maximum
+- Make the sentence natural and educational
 
-JSON only:`;
-  return callAndParse<Cloze>(prompt);
+Flashcard:
+Q: ${card.question}
+A: ${card.answer}
+
+ONLY IN VALID JSON:`;
+  return callAndParse<Cloze>(prompt, isProUser);
 }
 
-export async function generateTrueFalse(card: Card): Promise<TrueFalse | null> {
-  const prompt = `Return ONLY valid JSON, no extra text:
-{"type":"tf","prompt":"statement text","answer":true}
+export async function generateTrueFalse(card: Card, isProUser: boolean): Promise<TrueFalse | null> {
+  const prompt = `You are a flashcard quiz generator. Output ONLY valid JSON, nothing else.
 
-Create a declarative statement from the flashcard. Randomly make it true OR false (if false, change one fact). The "answer" field is a boolean.
+Format: {"type":"tf","prompt":"declarative statement","answer":true}
 
-Flashcard Q: ${card.question}
-Flashcard A: ${card.answer}
+Rules:
+- Convert the flashcard into a clear true/false statement
+- Randomly decide: true (accurate statement) OR false (change one key fact)
+- "answer" must be boolean: true or false (no quotes)
+- Make false statements believable but clearly wrong if you know the material
+- Keep statements concise and unambiguous
 
-JSON only:`;
-  return callAndParse<TrueFalse>(prompt);
+Flashcard:
+Q: ${card.question}
+A: ${card.answer}
+
+JSON:`;
+  return callAndParse<TrueFalse>(prompt, isProUser);
 }

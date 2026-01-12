@@ -87,7 +87,7 @@ export default function EditCard() {
         <div>
             <label className="opacity-70 text-sm">Deck</label>
             <select
-                className="p-2 rounded bg-[#111113] border border-white/10 w-full mt-1 text-gray-100"
+                className="p-2 rounded-lg bg-[#111113] border border-white/10 w-full mt-1 text-gray-100"
                 value={selectedDeckId}
                 onChange={(e) => setSelectedDeckId(e.target.value)}
             >
@@ -100,21 +100,21 @@ export default function EditCard() {
         </div>
 
             <input
-                className="p-2 rounded bg-[#111113] border border-white/10 text-gray-100"
+                className="p-2 rounded-lg bg-[#111113] border border-white/10 text-gray-100"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="Question"
             />
 
             <textarea
-                className="p-2 h-28 rounded bg-[#111113] border border-white/10 text-gray-100"
+                className="p-2 h-28 rounded-lg bg-[#111113] border border-white/10 text-gray-100"
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 placeholder="Answer"
             />
 
                 <button
-                className="px-4 py-2 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
+                className="px-4 py-2 rounded-lg bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
                 onClick={handleSave}
                 disabled={!question.trim() || !answer.trim()}
                 >
@@ -123,7 +123,7 @@ export default function EditCard() {
 
             <button
                 onClick={() => setShowDelete(true)}
-                className="px-4 py-2 rounded mt-4 bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
+                className="px-4 py-2 rounded-lg mt-4 bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
             >
                 Delete Card
             </button>
@@ -141,14 +141,14 @@ export default function EditCard() {
                 <div className="flex justify-end gap-4">
                 <button
                     onClick={() => setShowDelete(false)}
-                    className="px-3 py-1 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+                    className="px-3 py-1 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
                 >
                     Cancel
                 </button>
 
                 <button
                     onClick={handleDelete}
-                    className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
+                    className="px-3 py-1 rounded-lg bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
                 >
                     Delete
                 </button>

@@ -8,9 +8,14 @@ import Import from "./Import";
 import { formatDateMs } from "../lib/dateUtils";
 import AddCard from "./AddCard";
 import { getNewCount } from "../lib/queue";
+import { useAuth } from "../lib/useAuth";
+import { getSaveExists } from "./Review";
+import { useCoins } from "../lib/useCoins";
 
 export default function DeckDetail() {
   const { deckId } = useParams();
+  const {userId} = useAuth();
+  const coins = useCoins(userId);
   const navigate = useNavigate();
  
 
@@ -33,6 +38,17 @@ export default function DeckDetail() {
     }
   };
   const defaultMode = loadDefaultMode();
+  const loadDefaultRunLength = () => {
+    try {
+      const raw = localStorage.getItem("settings");
+      if (!raw) return DEFAULT_SETTINGS.defaultRunMaxLength;
+      const parsed = JSON.parse(raw);
+      return Number(parsed.defaultRunMaxLength) || DEFAULT_SETTINGS.defaultRunMaxLength;
+    } catch {
+      return DEFAULT_SETTINGS.defaultRunMaxLength;
+    }
+  };
+  const defaultRunLength = loadDefaultRunLength();
 
   const now = Date.now();
   const newCount = cards.filter(c => c.status === "new").length;
@@ -88,7 +104,7 @@ export default function DeckDetail() {
         <h1 className="text-2xl mb-2">Deck not found</h1>
         <button
           onClick={() => navigate("/decks")}
-          className="mt-2 px-3 py-1 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
+          className="mt-2 px-3 py-1 rounded-lg bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
         >
           Back to decks
         </button>
@@ -110,7 +126,9 @@ export default function DeckDetail() {
   }
 
   const isDefault = deck.id === DEFAULT_DECK_ID;
-
+  const save = getSaveExists(deck);
+  const canStartAI = userId && (coins !== null && coins >= (defaultRunLength === 30 ? 2 : 1) || save.aiSaveExists);
+  const aiLocked = save.classicSaveExists || !canStartAI || nothingToDo; 
   return (
     <>
       <div className="text-gray-100 p-6">
@@ -121,7 +139,7 @@ export default function DeckDetail() {
             <h1 className="text-2xl font-semibold">
               {deck.name}
               {isDefault && (
-                <span className="ml-2 text-xs bg-white/10 px-2 py-1 rounded uppercase opacity-80">
+                <span className="ml-2 text-xs bg-white/10 px-2 py-1 rounded-lg uppercase opacity-80">
                   DEFAULT
                 </span>
               )}
@@ -147,7 +165,7 @@ export default function DeckDetail() {
                   e.stopPropagation();
                   setShowRename(true);
                 }}
-                className="px-3 py-1 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+                className="px-3 py-1 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
               >
                 Rename
               </button>
@@ -157,7 +175,7 @@ export default function DeckDetail() {
                   e.stopPropagation();
                   setShowDelete(true);
                 }}
-                className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
+                className="px-3 py-1 rounded-lg bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
               >
                 Delete
               </button>
@@ -171,36 +189,41 @@ export default function DeckDetail() {
           {defaultMode === "none" ? (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
               <Link
-                className={`px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
+                className={`px-4 py-2 bg-white/10 text-gray-100 ring-white/70 hover:bg-white/30 border-white/20 transition ${save.aiSaveExists || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                 to={`/review/${deck.id}?mode=classic`}
-              >
-                Classic
-              </Link>
-
-              <Link
-                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
-                to={`/review/${deck.id}?mode=ai`}
                 onClick={(e) => {
-                  if (nothingToDo) {
+                  if (save.aiSaveExists || nothingToDo) {
                     e.preventDefault();
                   }
                 }}
               >
-                Quiz
+                {save.aiSaveExists ? "Active" : "Classic"}
+              </Link>
+
+              <Link
+                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${aiLocked ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
+                to={`/review/${deck.id}?mode=ai`}
+                onClick={(e) => {
+                  if (aiLocked) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                {save.classicSaveExists ? "Active" : !userId ? "Login" : "Quiz"}{defaultRunLength === 30 ? " 2🪙" : " 1🪙"}
               </Link>
             </div>
           ) : (
             <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20">
               <Link
-                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
+                className={`flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${(defaultMode === "ai" && aiLocked) || nothingToDo || (!userId && defaultMode === "ai") ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                 to={`/review/${deck.id}?mode=${defaultMode}`}
                 onClick={(e) => {
-                  if (nothingToDo) {
+                  if ((defaultMode === "ai" && aiLocked) || nothingToDo || (!userId && defaultMode === "ai")) {
                     e.preventDefault();
                   }
                 }}
               >
-                Review
+                Review{defaultMode === "ai" ? (defaultRunLength === 30 ? " 2🪙" : " 1🪙") : ""}
               </Link>
             </div>
           )}

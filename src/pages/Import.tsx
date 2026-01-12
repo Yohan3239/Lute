@@ -9,7 +9,7 @@ interface DeckIdProp {
 export default function Import({ deckId: deckIdProp }: DeckIdProp) {
     const { state } = useLocation();
     const deckId = deckIdProp ?? state?.deckId ?? null;
-    const [divider, setDivider] = useState(",");
+    const [divider, setDivider] = useState("\t");
     const [textToParse, setTextToParse] = useState("");
     useEffect(() => {
         if (!deckId) {
@@ -85,10 +85,10 @@ export default function Import({ deckId: deckIdProp }: DeckIdProp) {
                 value={divider}
                 onChange={(e) => setDivider(e.target.value)}
               >
+                <option value="\t">Tab</option>
                 <option value=",">Comma ,</option>
                 <option value=";">Semicolon ;</option>
                 <option value="|">Pipe |</option>
-                <option value="\t">Tab</option>
               </select>
               <span className="text-xs text-gray-500">Tip: Press Tab inside the box to insert the divider.</span>
             </div>

@@ -12,7 +12,7 @@ export class Session {
   private isAIMode: boolean = false;
   private isFullMode: boolean = false;
 
-  constructor(cards: VariantCard[], startIndex = 0, gameState = initialGameState(), deck = "", isAI = false, isFull = false, ){
+  constructor(cards: VariantCard[], startIndex = 0, gameState = initialGameState(), deck = "", isAI = false, isFull = false){
     this.queue = cards;
     this.index = startIndex;
     this.game = gameState;

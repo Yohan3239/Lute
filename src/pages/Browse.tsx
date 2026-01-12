@@ -90,7 +90,7 @@ export default function Browse() {
 
         {/* All cards option */}
         <div
-          className={`p-2 rounded cursor-pointer ${
+          className={`p-2 rounded-lg cursor-pointer ${
             currentDeck === "all" ? "bg-[#16161a] " : "hover:bg-white/5"
           }`}
           onClick={() => setCurrentDeck("all")}
@@ -102,7 +102,7 @@ export default function Browse() {
         {decks.map((deck) => (
           <div
             key={deck.id}
-            className={`p-2 rounded cursor-pointer mt-1 ${
+            className={`p-2 rounded-lg cursor-pointer mt-1 ${
               currentDeck === deck.id ? "bg-[#16161a]" : "hover:bg-white/5"
             }`}
             onClick={() => setCurrentDeck(deck.id)}
@@ -119,14 +119,14 @@ export default function Browse() {
         
           <div className="flex gap-3 mb-4">
             <button 
-              className="px-4 py-2 rounded text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+              className="px-4 py-2 rounded-lg text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
               onClick={handleSelectAll}
               >Select All ({filteredCards.length})
             </button>
             {selected.length > 0 && (
               <div>
               <button
-                className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
+                className="px-3 py-1 rounded-lg bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
                 onClick={handleDeleteClick}
               >
                 Delete ({selected.length})
@@ -134,19 +134,19 @@ export default function Browse() {
             
               {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-                  <div className="bg-[#16161a] p-4 rounded border border-white/10">
+                  <div className="bg-[#16161a] p-4 rounded-lg border border-white/10">
                     <p>Are you sure? This action cannot be reversed.</p>
                     <div className="mt-4 flex gap-2 justify-end">
-                      <button className="px-4 py-2 rounded text-sm bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500" 
+                      <button className="px-4 py-2 rounded-lg text-sm bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500" 
                       onClick={() => {setShowDeleteConfirm(false); handleBulkDelete();}}>Delete</button>
-                      <button className="px-4 py-2 rounded text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+                      <button className="px-4 py-2 rounded-lg text-sm bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
                       onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
                     </div>
                   </div>
                 </div>
               )}
               <select
-                className="bg-[#16161a] border border-white/10 px-3 py-1 rounded text-gray-200"
+                className="bg-[#16161a] border border-white/10 px-3 py-1 rounded-lg text-gray-200"
                 defaultValue=""
                 onChange={(e) => handleMoveToDeck(e.target.value)}
               >

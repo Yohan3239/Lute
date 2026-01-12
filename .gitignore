@@ -24,3 +24,7 @@ dist-electron/
 *.njsproj
 *.sln
 *.sw?
+*.aup3
+*.aup3-shm
+*.aup3-wal
+

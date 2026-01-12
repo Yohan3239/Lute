@@ -66,7 +66,7 @@ export default function DecksPage() {
                 {deck.name}
 
                 {deck.id === DEFAULT_DECK_ID && (
-                  <span className="text-xs px-2 py-1 rounded bg-white/10 uppercase opacity-80">
+                  <span className="text-xs px-2 py-1 rounded-lg bg-white/10 uppercase opacity-80">
                     DEFAULT
                   </span>
                 )}
@@ -100,7 +100,7 @@ export default function DecksPage() {
             <h2 className="text-xl mb-4">Create Deck</h2>
 
             <input
-              className="w-full p-2 rounded bg-[#111113] border border-white/10"
+              className="w-full p-2 rounded-lg bg-[#111113] border border-white/10"
               placeholder="Deck name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -109,7 +109,7 @@ export default function DecksPage() {
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setShowCreate(false)}
-                className="px-3 py-1 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+                className="px-3 py-1 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
               >
                 Cancel
               </button>

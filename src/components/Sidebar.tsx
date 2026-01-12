@@ -56,6 +56,18 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: "Game Guide",
+    to: "/gameguide",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        <path d="M8 7h8" />
+        <path d="M8 11h8" />
+      </svg>
+    ),  
+  }
 
 ];
 
@@ -130,6 +142,8 @@ export default function Sidebar() {
         className=" hover:bg-white/20 bg-white/10 text-white border border-white/15 shadow-inner shadow-indigo-500/10 group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition"
         onClick={signInWithGoogle}>Sign in with Google</button>
       }
+    
+
     </aside>
   );
 }

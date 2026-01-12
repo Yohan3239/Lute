@@ -33,7 +33,9 @@ let win: BrowserWindow | null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    width: 1200,
+    height: 800,
+    icon: path.join(__dirname, "../public/icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -126,7 +128,7 @@ ipcMain.handle("save-decks", async (_event, decks) => {
   return true;
 });
 
-ipcMain.handle("call-llm", async (_event, prompt: string) => {
+ipcMain.handle("call-llm", async (_event, prompt: string, isProUser: boolean) => {
   if (!prompt || typeof prompt !== "string") {
     throw new Error("call-llm requires a prompt string");
   }
@@ -137,15 +139,23 @@ ipcMain.handle("call-llm", async (_event, prompt: string) => {
       Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZ29neGNncWR1b3NlanNicnp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5ODE2NzksImV4cCI6MjA4MzU1NzY3OX0.sze2KFS1F9G2f6z4JmXD9I2BRKkltIQoQOE6VQdlXfk`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, isProUser }),
   });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Groq error ${res.status}: ${errText}`);
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`LLM returned non-JSON: ${text}`);
+  }
+  if (data.error?.message) {
+    throw new Error(`Groq: ${data.error.message}`);
   }
 
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Groq: empty content");
+  return content;
+
 });
 
 ipcMain.handle("open-external", async (_event, url: string) => {
@@ -154,7 +164,6 @@ ipcMain.handle("open-external", async (_event, url: string) => {
 // Handle deep linking for OAuth when app closed while waiting for callback
 const deepLink = process.argv.find((arg) => arg.startsWith("lute://"));
 if (deepLink) {
-  console.log("OAuth callback (app launch):", deepLink);
   app.whenReady().then(() => {
     win?.webContents.send("oauth-callback", deepLink);
   });
@@ -164,7 +173,6 @@ app.setAsDefaultProtocolClient("lute");
 // Protocol handler for macOS
 app.on("open-url", (event, url) => {
   event.preventDefault();
-  console.log("OAuth callback:", url);
 
   win?.webContents.send("oauth-callback", url);
 });
@@ -179,7 +187,6 @@ app.on("second-instance", (_event, argv) => {
   // Protocol handler for Windows
   const url = argv.find(arg => arg.startsWith("lute://"));
   if (url) {
-    console.log("OAuth callback (second-instance):", url);
     win?.webContents.send("oauth-callback", url);
   }
 });

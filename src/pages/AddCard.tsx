@@ -50,7 +50,8 @@ export default function AddCard({ deckId: deckIdProp }: DeckIdProp) {
             await window.api.saveCards(updated);
 
             setStatus("saved");
-
+            setQuestion("");
+            setAnswer("");
             // optional: redirect back to deck
             navigate(`/decks/${selectedDeckId}`);
 
@@ -69,7 +70,7 @@ export default function AddCard({ deckId: deckIdProp }: DeckIdProp) {
         <div>
             <label className="opacity-70 text-sm">Deck</label>
             <select
-                className="p-2 bg-[#111113] border border-white/10 rounded w-full mt-1 text-gray-100"
+                className="p-2 bg-[#111113] border border-white/10 rounded-lg w-full mt-1 text-gray-100"
                 value={selectedDeckId}
                 onChange={(e) => setSelectedDeckId(e.target.value)}
             >
@@ -82,23 +83,29 @@ export default function AddCard({ deckId: deckIdProp }: DeckIdProp) {
         </div>
 
         <input
-          className="p-2 rounded bg-[#111113] border border-white/10 text-gray-100"
+          className="p-2 rounded-lg bg-[#111113] border border-white/10 text-gray-100"
           placeholder="Question..."
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
         />
 
         <textarea
-          className="p-2 h-28 rounded bg-[#111113] border border-white/10 text-gray-100"
+          className="p-2 h-28 rounded-lg bg-[#111113] border border-white/10 text-gray-100"
           placeholder="Answer..."
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
         />
 
         <button
-        className="px-4 py-2 rounded bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
-        onClick={handleSave}
+        className="px-4 py-2 rounded-lg bg-indigo-500/80 text-indigo-50 ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:ring-0"
+        onClick={() =>
+          {
+            handleSave();
+            setQuestion("");
+            setAnswer("");
+          }}
         disabled={!question.trim() || !answer.trim()}
+
         >
         Save Card
         </button>

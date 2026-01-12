@@ -15,6 +15,7 @@ import DeckSettings from "./pages/DeckSettings";
 import { listenForOAuth } from "./lib/useAuth";
 import { useEffect } from "react";
 import DevAuthCallback from "./lib/devAuthCallback";
+import CheatSheet from "./pages/CheatSheet";
 export default function App() {
   useEffect(() => {
     listenForOAuth();
@@ -46,6 +47,7 @@ export default function App() {
 
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth-callback" element={<DevAuthCallback />} />
+              <Route path="/gameguide" element={<CheatSheet showEvents={true} />} /> 
 
             </Routes>
           </div>

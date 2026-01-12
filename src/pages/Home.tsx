@@ -7,7 +7,7 @@ import { getSaveExists } from "./Review";
 import { getNewCount } from "../lib/queue";
 import { getTodayString, isConsecutiveDay } from "../lib/dateUtils";
 import { useAuth } from "../lib/useAuth";
-import { getScoreboard } from "../lib/useCoins";
+import { getIsProUser, getScoreboard, TopupCoins, useCoins } from "../lib/useCoins";
 
 function readStreak() {
   return {
@@ -28,19 +28,23 @@ const resetStreak = () => {
 }
 export default function Home() {
   const { userId } = useAuth();
+  const coins = useCoins(userId);
 
   const [cards, setCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [{ globalStreak, lastStreakDate }, setStreakState] = useState(readStreak);
   const [scores, setScores] = useState<number[]>([]);
   const [times, setTimes] = useState<string[]>([]);
-
+  const [isProUser, setIsProUser] = useState<boolean>(false);
   useEffect(() => {
     if (userId) {
       getScoreboard(userId).then(({ scores, times }) => {
         setScores(scores);
         setTimes(times);
+        getIsProUser(userId).then(setIsProUser);
       });
+      // Claim monthly reward if it's the first of the month
+      TopupCoins(userId, isProUser ? 200 : 15);
     }
   }, [userId]);
 
@@ -99,8 +103,20 @@ export default function Home() {
   };
 
   const defaultMode = loadDefaultMode();
+  const loadDefaultRunLength = () => {
+    try {
+      const raw = localStorage.getItem("settings");
+      if (!raw) return DEFAULT_SETTINGS.defaultRunMaxLength;
+      const parsed = JSON.parse(raw);
+      return Number(parsed.defaultRunMaxLength) || DEFAULT_SETTINGS.defaultRunMaxLength;
+    } catch {
+      return DEFAULT_SETTINGS.defaultRunMaxLength;
+    }
+  };
+  const defaultRunLength = loadDefaultRunLength();
   const dayName = (i: number) =>
     i === 0 ? "Today" : i === 1 ? "Tomorrow" : `+${i} days`;
+  const maxForecast = Math.max(...forecast, 1);
   return (
     <div className="text-gray-100 p-6 space-y-8">
 
@@ -140,6 +156,8 @@ export default function Home() {
             const save = getSaveExists(deck);
             const otherModeActive = defaultMode === "ai" ? save.classicSaveExists : save.aiSaveExists;
             const nothingToDo = deck.due === 0 && deck.new === 0;
+            const canStartAI = userId && (coins !== null && coins >= (defaultRunLength === 30 ? 2 : 1) || save.aiSaveExists);
+            const aiLocked = save.classicSaveExists || !canStartAI || nothingToDo;
             return (
             <div
               key={deck.id}
@@ -164,29 +182,29 @@ export default function Home() {
                     {save.aiSaveExists ? "Active" : "Classic"}
                   </Link>
 
-                  <Link className={`${save.classicSaveExists || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
+                  <Link className={`${aiLocked ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""} flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 border-l border-white/20 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition`}
                     to={`/review/${deck.id}?mode=ai`} 
                       onClick={(e) => {
-                      if (save.classicSaveExists || nothingToDo) {
+                      if (aiLocked) {
                         e.preventDefault();
                       }
                     }} 
                   >
-                    {save.classicSaveExists ? "Active" : "Quiz"}
+                    {save.classicSaveExists ? "Active" : !userId ? "Login" : "Quiz"}{defaultRunLength === 30 ? " 2🪙" : " 1🪙"}
                   </Link>
                 </div>
               ) : (
                 <div className="inline-flex rounded-xl overflow-hidden bg-[#111] ring-1 ring-white/20 mt-4">
                   <Link
-                    className={`flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${otherModeActive || nothingToDo ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
+                    className={`flex-1 inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 text-white font-semibold px-4 py-2 shadow-lg shadow-indigo-500/15 hover:from-indigo-500 hover:via-indigo-500 hover:to-indigo-400 transition ${(defaultMode === "ai" && aiLocked) || (otherModeActive || nothingToDo || (!userId && defaultMode === "ai")) ? "opacity-30 grayscale cursor-not-allowed pointer-events-none" : ""}`}
                     to={`/review/${deck.id}?mode=${defaultMode}`}
                     onClick={(e) => {
-                      if (otherModeActive || nothingToDo) {
+                      if ((defaultMode === "ai" && aiLocked) || otherModeActive || nothingToDo || (!userId && defaultMode === "ai")) {
                         e.preventDefault();
                       }
                     }}
                   >
-                    {otherModeActive ? "Active" : "Review"}
+                    {otherModeActive ? "Active" : !userId && defaultMode === "ai" ? "Login" : "Review"}{defaultMode === "ai" ? (defaultRunLength === 30 ? " 2🪙" : " 1🪙") : ""}
                   </Link>
                 </div>
               )}
@@ -213,7 +231,7 @@ export default function Home() {
                   <div className="flex-1 h-2 bg-white/5 rounded">
                     <div
                       className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
-                      style={{ width: `${Math.min(count * 8, 100)}%` }}
+                      style={{ width: `${Math.round((count / maxForecast) * 100)}%` }}
                     ></div>
                   </div>
                   <div className="w-8 text-right opacity-80 text-gray-300 text-sm">{count}</div>
@@ -271,7 +289,7 @@ export default function Home() {
                 <div className="flex-1 h-2 bg-white/5 rounded">
                   <div
                     className="h-2 bg-gradient-to-r from-indigo-500/80 via-indigo-500/70 to-indigo-400/70 rounded shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)]"
-                    style={{ width: `${Math.min(count * 8, 100)}%` }}
+                    style={{ width: `${Math.round((count / maxForecast) * 100)}%` }}
                   ></div>
                 </div>
                 <div className="w-10 text-right opacity-80 text-gray-300">{count}</div>
