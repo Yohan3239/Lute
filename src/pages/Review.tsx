@@ -245,7 +245,7 @@ export default function Review() {
   const [isProUser, setIsProUser] = useState<boolean>(false);
   useEffect(() => {
     if (userId) {
-      getIsProUser(userId).then(setIsProUser);
+      getIsProUser().then(setIsProUser);
     }
   }, [userId]);
 
@@ -563,7 +563,7 @@ export default function Review() {
       // Start with empty artifacts - user will select from popup
       const s = new Session(VariantList, 0, initialGameState(), deckId || "", isAIReview, (runMaxLength === 30));
       if (isAIReview && userId) {
-        await decrementCoins(userId, runMaxLength === 30 ? 2 : 1);
+        await decrementCoins(runMaxLength === 30 ? 2 : 1);
       }
       sessionRef.current = s;
       setGame(initialGameState());

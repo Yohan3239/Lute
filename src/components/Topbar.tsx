@@ -33,7 +33,7 @@ export default function Topbar() {
   const [showProInfo, setShowProInfo] = useState(false);
   useEffect(() => {
     if (userId) {
-      getIsProUser(userId).then(setIsProUser);
+      getIsProUser().then(setIsProUser);
     }
   }, [userId]);
   const coins = useCoins(userId);
@@ -77,7 +77,7 @@ export default function Topbar() {
         </span>
           </div>)}
 
-        {!isProUser && (
+        {!isProUser && userId && (
           <div
             className="relative flex items-center h-full"
             onMouseEnter={() => setShowProInfo(true)}
@@ -104,7 +104,7 @@ export default function Topbar() {
 
           </div>
         )}
-        {isProUser && (
+        {isProUser && userId && (
           <span className="inline-flex items-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-300">
             <span
             title="Thank you!">Pro</span>

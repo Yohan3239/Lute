@@ -7,7 +7,7 @@ import { getSaveExists } from "./Review";
 import { getNewCount } from "../lib/queue";
 import { getTodayString, isConsecutiveDay } from "../lib/dateUtils";
 import { useAuth } from "../lib/useAuth";
-import { getIsProUser, getScoreboard, TopupCoins, useCoins } from "../lib/useCoins";
+import { getScoreboard, TopupCoins, useCoins } from "../lib/useCoins";
 
 function readStreak() {
   return {
@@ -35,16 +35,14 @@ export default function Home() {
   const [{ globalStreak, lastStreakDate }, setStreakState] = useState(readStreak);
   const [scores, setScores] = useState<number[]>([]);
   const [times, setTimes] = useState<string[]>([]);
-  const [isProUser, setIsProUser] = useState<boolean>(false);
   useEffect(() => {
     if (userId) {
       getScoreboard(userId).then(({ scores, times }) => {
         setScores(scores);
         setTimes(times);
-        getIsProUser(userId).then(setIsProUser);
       });
       // Claim monthly reward if it's the first of the month
-      TopupCoins(userId, isProUser ? 200 : 15);
+      TopupCoins();
     }
   }, [userId]);
 

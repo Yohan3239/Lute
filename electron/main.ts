@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { autoUpdater } from "electron-updater";
 import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
@@ -9,7 +10,8 @@ const dataPath = path.join(app.getPath("userData"), "cards.json");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const decksPath = path.join(app.getPath("userData"), "decks.json");
-
+const sampleDeckSeededPath = path.join(app.getPath("userData"), "sampleDeckSeeded.txt");
+let sampleDeckSeeded = fs.existsSync(sampleDeckSeededPath);
 
 // The built directory structure
 //
@@ -31,6 +33,23 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 
+function initAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.on("error", (err) => {
+    console.error("Auto-updater error:", err);
+  });
+  autoUpdater.on("update-available", () => {
+    console.log("Update available. Downloading...");
+  });
+  autoUpdater.on("update-downloaded", () => {
+    console.log("Update downloaded. Quitting to install.");
+    autoUpdater.quitAndInstall();
+  });
+  autoUpdater.checkForUpdates();
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1200,
@@ -49,6 +68,432 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
+function ensureSampleDeck() {
+  if (sampleDeckSeeded) return;
+
+  const sampleDeck = {
+    id: "sample-deck",
+    name: "Sample",
+    created: Date.now(),
+  };
+  const now = Date.now();
+  const sampleCards = [
+    {
+      id: "sample-calc-ln-derivative",
+      question: "What is d/dx of ln(x)?",
+      answer: "1/x",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-calc-exp-integral",
+      question: "What is the integral of e^x dx?",
+      answer: "e^x + C",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-linear-mult-dim",
+      question: "If A is 3x2 and B is 2x4, what is the size of AB?",
+      answer: "3x4",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-linear-eigen",
+      question: "What is an eigenvalue of a matrix?",
+      answer: "A scalar lambda where Av = lambda v for a nonzero vector v",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-linear-rank",
+      question: "What does the rank of a matrix represent?",
+      answer: "The dimension of its column space",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-prob-bernoulli-var",
+      question: "What is the variance of a Bernoulli(p) random variable?",
+      answer: "p(1-p)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-prob-bayes",
+      question: "What is Bayes' theorem?",
+      answer: "P(A|B) = P(B|A)P(A) / P(B)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-stats-pvalue",
+      question: "What is a p-value?",
+      answer: "Probability under the null of data as extreme or more extreme",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-stats-ci",
+      question: "What does a 95% confidence interval mean?",
+      answer: "In repeated samples, 95% of intervals contain the true parameter",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-algo-merge",
+      question: "What is the time complexity of merge sort?",
+      answer: "O(n log n)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-algo-dijkstra",
+      question: "Dijkstra's algorithm requires what kind of edge weights?",
+      answer: "Nonnegative weights",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-ds-hash",
+      question: "Average time for hash table lookup?",
+      answer: "O(1)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-os-pagefault",
+      question: "What is a page fault?",
+      answer: "A trap when a process accesses a page not in RAM",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-db-acid",
+      question: "What does ACID stand for in databases?",
+      answer: "Atomicity, Consistency, Isolation, Durability",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-net-tcp",
+      question: "What does TCP provide that UDP does not?",
+      answer: "Reliable, ordered delivery with congestion control",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-physics-work-energy",
+      question: "What does the work-energy theorem state?",
+      answer: "Net work equals the change in kinetic energy",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-physics-gauss",
+      question: "State Gauss's law for electricity.",
+      answer: "Electric flux through a closed surface equals charge enclosed divided by epsilon0",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-physics-first-law",
+      question: "What is the first law of thermodynamics?",
+      answer: "Delta U = Q - W",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-physics-kinematics",
+      question: "For constant acceleration, what is the equation for v^2?",
+      answer: "v^2 = v0^2 + 2*a*delta_x",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-chem-ph",
+      question: "How is pH defined?",
+      answer: "-log10([H+])",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-chem-gibbs",
+      question: "What is the Gibbs free energy equation?",
+      answer: "Delta G = Delta H - T*Delta S",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-chem-sn1",
+      question: "In SN1 reactions, the rate depends on what?",
+      answer: "Only the substrate concentration",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-bio-atp",
+      question: "What is the primary role of ATP in cells?",
+      answer: "Energy currency that drives cellular reactions",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-bio-dna",
+      question: "What are the base-pairing rules in DNA?",
+      answer: "A pairs with T, and C pairs with G",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-econ-demand",
+      question: "What does the law of demand state?",
+      answer: "Quantity demanded falls as price rises, ceteris paribus",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-econ-gdp",
+      question: "What is GDP?",
+      answer: "Total market value of final goods and services produced domestically in a period",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-finance-npv",
+      question: "What is net present value (NPV)?",
+      answer: "Present value of inflows minus outflows discounted at a required rate",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-ee-capacitor",
+      question: "What is the impedance of a capacitor?",
+      answer: "1/(j*omega*C)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-signals-nyquist",
+      question: "Nyquist sampling theorem requires what minimum sampling rate?",
+      answer: "At least twice the highest frequency (2*f_max)",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+    {
+      id: "sample-ml-regularization",
+      question: "What is the purpose of regularization in machine learning?",
+      answer: "Reduce overfitting by penalizing model complexity",
+      deckId: "sample-deck",
+      interval: 0,
+      ease: 2.5,
+      reps: 0,
+      nextReview: now,
+      status: "new",
+      learningStep: 0,
+      lapses: 0,
+    },
+  ];
+  let decks = [];
+  if (fs.existsSync(decksPath)) {
+    const raw = fs.readFileSync(decksPath, "utf8");
+    try {
+      decks = JSON.parse(raw);
+    } catch {
+      decks = [];
+    }
+  }
+  decks.push(sampleDeck);
+  fs.writeFileSync(decksPath, JSON.stringify(decks, null, 2));
+  let cards = [];
+  if (fs.existsSync(dataPath)) {
+    const raw = fs.readFileSync(dataPath, "utf8");
+    try {
+      cards = JSON.parse(raw);
+    } catch {
+      cards = [];
+    }
+  }
+  fs.writeFileSync(dataPath, JSON.stringify([...cards, ...sampleCards], null, 2));
+  fs.writeFileSync(sampleDeckSeededPath, "true");
+  sampleDeckSeeded = true;
+}
+
 // Ensure default deck exists
 function ensureDefaultDeck() {
   if (!fs.existsSync(decksPath)) {
@@ -76,6 +521,7 @@ function ensureDefaultDeck() {
 }
 
 ensureDefaultDeck();
+ensureSampleDeck();
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -190,4 +636,7 @@ app.on("second-instance", (_event, argv) => {
     win?.webContents.send("oauth-callback", url);
   }
 });
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  createWindow();
+  initAutoUpdater();
+})

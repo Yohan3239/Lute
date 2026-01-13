@@ -40,5 +40,9 @@
       "AppImage"
     ],
     "artifactName": "${productName}-Linux-${version}.${ext}"
-  }
+  },
+  "publish": [
+    { "provider": "github", "owner": "Yohan3239", "repo": "Lute" }
+  ]
+
 }

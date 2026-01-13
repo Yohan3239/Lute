@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Deck, Card } from "../lib/types";
 import { listDecks, renameDeck, deleteDeck } from "../lib/decks";
+import { supabase } from "../lib/supabaseClient";
 import { DEFAULT_DECK_ID, DEFAULT_SETTINGS } from "../lib/constants";
 import DeckSettings from "./DeckSettings";
 import Import from "./Import";
@@ -14,7 +15,7 @@ import { useCoins } from "../lib/useCoins";
 
 export default function DeckDetail() {
   const { deckId } = useParams();
-  const {userId} = useAuth();
+  const {userId, signInWithGoogle} = useAuth();
   const coins = useCoins(userId);
   const navigate = useNavigate();
  
@@ -27,6 +28,9 @@ export default function DeckDetail() {
   const [showImport, setShowImport] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDescription, setUploadDescription] = useState("");
   const loadDefaultMode = () => {
     try {
       const raw = localStorage.getItem("settings");
@@ -180,6 +184,7 @@ export default function DeckDetail() {
                 Delete
               </button>
             </div>
+            
           )}
         </div>
 
@@ -233,21 +238,42 @@ export default function DeckDetail() {
           <button
             type="button"
             onClick={()=> setShowAddCard(true)}
-            className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+            className="px-4 py-2 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Add card
           </button>
           <button
             type="button"
             onClick={()=> setShowImport(true)}
-            className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+            className="px-4 py-2 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Import
           </button>
+          {cards.length > 0 && 
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (!userId) {
+                // prompt sign-in for unauthenticated users
+                try {
+                  await signInWithGoogle();
+                } catch (err) {
+                  console.error('Sign-in failed', err);
+                }
+                return;
+              }
+              setShowUpload(true);
+              setUploadTitle(deck.name || "");
+            }}
+            className="px-3 py-1 rounded-lg bg-indigo-500/80 text-white ring-indigo-400/70 shadow-[0_0_30px_-10px_rgba(129,140,248,0.6)] hover:bg-indigo-500"
+          >
+            Upload to Plaza
+          </button>
+      }
           <button
             type="button"
             onClick={()=> setShowSettings(true)}
-            className="px-4 py-2 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
+            className="px-4 py-2 rounded-lg bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70"
           >
             Settings
           </button>
@@ -334,6 +360,74 @@ export default function DeckDetail() {
                 className="px-3 py-1 rounded bg-rose-500/80 text-rose-50 ring-rose-400/70 shadow-[0_0_30px_-10px_rgba(251,113,133,0.6)] hover:bg-rose-500"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* UPLOAD TO PLAZA MODAL */}
+      {showUpload && userId && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-[#16161a] p-6 rounded-lg w-96 border border-white/10">
+            <h2 className="text-xl mb-2">Upload to Deck Plaza</h2>
+            <p className="text-sm opacity-70 mb-4">Share this deck with the community. This deck will then be available for others to view and use.</p>
+            <p className="text-sm opacity-70 mb-4 text-rose-400">Uploading will overwrite any previous version of this deck you have uploaded. If you want to keep multiple versions, consider changing the title.</p>
+
+            <label className="text-sm opacity-70">Title</label>
+            <input className="w-full p-2 rounded bg-[#111113] border border-white/10 mb-3" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} />
+
+            <label className="text-sm opacity-70">Description (optional)</label>
+            <textarea className="w-full p-2 rounded bg-[#111113] border border-white/10 mb-3" value={uploadDescription} onChange={(e) => setUploadDescription(e.target.value)} />
+
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowUpload(false)} className="px-3 py-1 rounded bg-[#16161a] border border-white/10 text-gray-200 hover:border-indigo-300/70">Cancel</button>
+              <button
+                onClick={async () => {
+                  try {
+                    const localDeckId = deck.id;
+                    const deckPayload: any = {
+                      local_deck_id: localDeckId,
+                      owner_user_id: userId,
+                      name: uploadTitle || deck.name,
+                      created_at: new Date().toISOString(),
+                      description: uploadDescription,
+                    };
+                    const { owner_user_id, local_deck_id } = await supabase.from('plaza').select('owner_user_id, local_deck_id, name').eq('local_deck_id', localDeckId).eq('owner_user_id', userId).eq('name', uploadTitle || deck.name).single().then(res => res.data) || {};
+                    if (owner_user_id && local_deck_id) {
+                      const {error} = await supabase.from('plaza').delete().eq('local_deck_id', localDeckId).eq('owner_user_id', owner_user_id);
+                      if (error) {
+                        console.error('SELECT failed', error);
+                        return;
+                      }
+                    }
+                    const { data, error } = await supabase.from('plaza').insert(deckPayload).select().single();
+
+                    const plazaDeckId = data.id;
+
+                    const cardPayload = cards.map((c) => ({
+                      local_card_id: c.id,
+                      plaza_deck_id: plazaDeckId,
+                      user_id: userId,
+                      question: c.question,
+                      answer: c.answer,
+                    }));
+                    await supabase.from('plaza_cards').delete().eq('plaza_deck_id', plazaDeckId).eq('user_id', userId);
+                    const { error: cardError } = await supabase.from('plaza_cards').insert(cardPayload);
+                    if (error || cardError) {
+                      console.error('INSERT failed', error);
+                      alert('Upload failed');
+                      return;
+                    }
+                    alert('Uploaded to Plaza successfully.');
+                    setShowUpload(false);
+                  } catch (err) {
+                    console.error(err);
+                    alert('Upload failed. See console.');
+                  }
+                }}
+                className="px-3 py-1 rounded bg-green-500/80 text-white"
+              >
+                Upload
               </button>
             </div>
           </div>

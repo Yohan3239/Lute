@@ -46,15 +46,32 @@ const navItems = [
       </svg>
     )
   },
-  {
-    label: "Settings",
-    to: "/settings",
+    {
+    label: "Deck Plaza",
+    to: "/deckplaza",
     icon: (
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.89 3.31.876 2.42 2.42a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.89 1.543-.876 3.31-2.42 2.42a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.89-3.31-.876-2.42-2.42a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.89-1.543.876-3.31 2.42-2.42a1.724 1.724 0 0 0 2.572-1.065Z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ),
+<svg
+  viewBox="0 0 24 24"
+  className="h-4 w-4"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="1.5"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  {/* heads */}
+  <circle cx="12" cy="8" r="2.5" />
+  <circle cx="6.5" cy="9" r="2" />
+  <circle cx="17.5" cy="9" r="2" />
+
+  {/* bodies */}
+  <path d="M7.5 18c0-2.3 2-4 4.5-4s4.5 1.7 4.5 4" />
+  <path d="M3.5 18c0-1.7 1.4-3 3-3" />
+  <path d="M20.5 18c0-1.7-1.4-3-3-3" />
+</svg>
+
+
+    ),  
   },
   {
     label: "Game Guide",
@@ -67,7 +84,18 @@ const navItems = [
         <path d="M8 11h8" />
       </svg>
     ),  
-  }
+  },
+  {
+    label: "Settings",
+    to: "/settings",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.89 3.31.876 2.42 2.42a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.89 1.543-.876 3.31-2.42 2.42a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.89-3.31-.876-2.42-2.42a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.89-1.543.876-3.31 2.42-2.42a1.724 1.724 0 0 0 2.572-1.065Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+  },
+
 
 ];
 
@@ -96,26 +124,58 @@ export default function Sidebar() {
         <div className="space-y-1">
           {navItems.map(item => {
             const active = isActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                  active
-                    ? "bg-white/10 text-white border border-white/15 shadow-inner shadow-indigo-500/10"
-                    : "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent"
-                }`}
-              >
+            const locked = item.to === "/deckplaza" && !userId;
+            const baseClass =
+              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition";
+            const activeClass =
+              "bg-white/10 text-white border border-white/15 shadow-inner shadow-indigo-500/10";
+            const idleClass =
+              "text-gray-300 hover:text-white hover:bg-white/5 border border-transparent";
+            const lockedClass =
+              "text-gray-500 border border-transparent opacity-60";
+            const iconClass = active
+              ? "border-indigo-400/50 bg-indigo-500/15 text-indigo-100"
+              : "border-white/10 bg-white/5 text-gray-300 group-hover:border-white/20";
+            const lockedIconClass = "border-white/10 bg-white/5 text-gray-500";
+            const content = (
+              <>
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
-                    active
-                      ? "border-indigo-400/50 bg-indigo-500/15 text-indigo-100"
-                      : "border-white/10 bg-white/5 text-gray-300 group-hover:border-white/20"
+                    locked ? lockedIconClass : iconClass
                   }`}
                 >
                   {item.icon}
                 </span>
                 <span className="flex-1">{item.label}</span>
+                {locked && (
+                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                    Login
+                  </span>
+                )}
+              </>
+            );
+
+            if (locked) {
+              return (
+                <button
+                  key={item.to}
+                  type="button"
+                  onClick={signInWithGoogle}
+                  className={`${baseClass} ${lockedClass}`}
+                  aria-disabled="true"
+                >
+                  {content}
+                </button>
+              );
+            }
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`${baseClass} ${active ? activeClass : idleClass}`}
+              >
+                {content}
               </Link>
             );
           })}
@@ -142,9 +202,8 @@ export default function Sidebar() {
         className=" hover:bg-white/20 bg-white/10 text-white border border-white/15 shadow-inner shadow-indigo-500/10 group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition"
         onClick={signInWithGoogle}>Sign in with Google</button>
       }
-    
+
 
     </aside>
   );
 }
-

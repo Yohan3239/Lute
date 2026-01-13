@@ -16,6 +16,9 @@ import { listenForOAuth } from "./lib/useAuth";
 import { useEffect } from "react";
 import DevAuthCallback from "./lib/devAuthCallback";
 import CheatSheet from "./pages/CheatSheet";
+import { DeckPlaza } from "./pages/DeckPlaza";
+import { DeckPlazaCards } from "./pages/DeckPlazaCards";
+
 export default function App() {
   useEffect(() => {
     listenForOAuth();
@@ -42,12 +45,13 @@ export default function App() {
 
               <Route path="/browse" element={<Browse />} />
               <Route path="/add" element={<AddCard />} />
-              
+              <Route path="/deckplaza" element={<DeckPlaza />} />
+              <Route path="/deckplaza/:deckId" element={<DeckPlazaCards fromHover={false}/>} />
               <Route path="/cards/:id" element={<EditCard />} />
 
               <Route path="/settings" element={<Settings />} />
               <Route path="/auth-callback" element={<DevAuthCallback />} />
-              <Route path="/gameguide" element={<CheatSheet showEvents={true} />} /> 
+              <Route path="/gameguide" element={<CheatSheet showEvents={false} />} /> 
 
             </Routes>
           </div>
