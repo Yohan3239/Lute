@@ -1,6 +1,6 @@
 {
   "name": "lute",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple, open-source flashcard application for learning and memorization.",
   "author": "Yohan Lee",
   "private": true,
